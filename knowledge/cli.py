@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+import uuid
 from datetime import datetime, timedelta
 from pathlib import Path
 
@@ -21,10 +22,17 @@ def parser() -> argparse.ArgumentParser:
     cli = argparse.ArgumentParser(prog="knowledge", description="Notes and AI conversations → personal wiki, daily notes and maps")
     cli.add_argument("--version", action="version", version=__version__)
     commands = cli.add_subparsers(dest="command", required=True)
-    for name in ("init", "sync", "build", "search", "status", "plan", "export-magpie", "schedule", "publish", "source", "checkin", "task", "review", "demo", "doctor"):
+    for name in ("init", "sync", "build", "search", "status", "plan", "export-magpie", "schedule", "publish", "source", "checkin", "task", "review", "demo", "doctor", "backup", "restore"):
         command = commands.add_parser(name)
         command.add_argument("--workspace", type=Path, required=True)
-        if name == "doctor":
+        if name == "backup":
+            command.add_argument("--output", type=Path, required=True)
+        elif name == "restore":
+            command.add_argument("--input", type=Path, required=True)
+            command.add_argument("--dry-run", action="store_true")
+        elif name == "status":
+            command.add_argument("--format", choices=("text", "json"), default="json")
+        elif name == "doctor":
             command.add_argument("--publish", action="store_true", help="Explicitly check the private GitHub publication target")
             command.add_argument("--format", choices=("text", "json"), default="text")
         elif name == "checkin":
@@ -51,6 +59,7 @@ def parser() -> argparse.ArgumentParser:
             command.add_argument("--engine", choices=("extract", "codex", "claude"))
             command.add_argument("--push", action="store_true")
             command.add_argument("--magpie", action="store_true")
+            command.add_argument("--log", action="store_true", help="Append safe metadata to .knowledge/scheduler.jsonl")
         elif name == "search":
             command.add_argument("query")
             command.add_argument("--since")
@@ -85,8 +94,15 @@ def main(argv=None) -> int:
             stream.reconfigure(encoding="utf-8")
     args = parser().parse_args(argv)
     root = args.workspace.expanduser().resolve()
+    operation_id = uuid.uuid4().hex if args.command == "sync" else None
     try:
-        if args.command == "doctor":
+        if args.command == "backup":
+            from .backup import backup
+            result = backup(root, args.output.expanduser().resolve())
+        elif args.command == "restore":
+            from .backup import restore
+            result = restore(args.input.expanduser().resolve(), root, dry_run=args.dry_run)
+        elif args.command == "doctor":
             from .doctor import doctor
             result = doctor(root, check_publish=args.publish)
             if args.format == "json":
@@ -147,7 +163,10 @@ def main(argv=None) -> int:
         elif args.command == "review":
             result = review(root, args.as_of)
         elif args.command == "sync":
-            result = sync(root, args.engine, args.push, args.magpie)
+            result = sync(root, args.engine, args.push, args.magpie, run_id=operation_id)
+            if args.log:
+                from .runstate import append_log
+                append_log(root, result)
         elif args.command == "export-magpie":
             result = export_magpie(root, args.output.expanduser().resolve())
         elif args.command == "build":
@@ -170,10 +189,25 @@ def main(argv=None) -> int:
                     print("未找到匹配记录；使用空格分开的关键词，所有关键词都必须匹配。")
                 return 0
         elif args.command == "status":
-            config = load_config(root)
-            latest = root / ".knowledge" / "last-run.json"
-            result = {"sources": [{"name": s["name"], "kind": s["kind"]} for s in config["sources"]],
-                      "engine": config["engine"]["name"], "last_run": read_json(latest) if latest.exists() else None}
+            from .runstate import status
+            result = status(root)
+            if args.format == "text":
+                attempt, success = result["last_attempt"], result["last_run"]
+                print("最近同步尝试：" + ({"running": "记录为运行中", "succeeded": "已完成", "failed": "失败", "interrupted": "中断"}.get(attempt["status"], "未知") if attempt else "尚无记录"))
+                if attempt:
+                    phases = {"configuration": "配置校验", "verify_target": "私有目标核验", "verify_magpie": "Magpie 核验", "catalog": "打开目录数据库", "collect": "采集", "summarize": "整理", "render": "生成页面", "publish": "私有推送", "magpie": "Magpie 同步", "record": "保存运行记录", "complete": "完成"}
+                    print("阶段：" + phases.get(attempt["phase"], "未知"))
+                    saved = attempt.get("saved", {})
+                    saved_names = {"catalog": "目录数据库", "rendered": "生成页面", "published": "GitHub 推送", "magpie": "Magpie 同步"}
+                    print("本轮确认保存：" + ("、".join(title for key, title in saved_names.items() if saved.get(key)) or "尚未确认"))
+                    if attempt.get("next_step"):
+                        print("下一步：" + attempt["next_step"])
+                print("最近完整成功：" + (str(success.get("time", "时间未记录")) if success else "尚无记录"))
+                print("工作区锁：" + ("忙碌" if result["workspace_busy"] is True else "空闲" if result["workspace_busy"] is False else "无法确认"))
+                if result["configuration_error"]:
+                    print("配置需要修复：" + result["configuration_error"])
+                print("后台任务是否已注册未在此查询；日志见 .knowledge/scheduler.jsonl。")
+                return 0
         elif args.command == "plan":
             result = sync_scope(load_config(root))
         elif args.command == "schedule":
@@ -189,5 +223,11 @@ def main(argv=None) -> int:
         return 0
     except (KnowledgeError, OSError, ValueError) as exc:
         # Raw provider responses and source bodies never enter the console error path.
+        if args.command == "sync" and args.log:
+            from .runstate import append_log
+            try:
+                append_log(root, run_id=operation_id)
+            except OSError:
+                pass
         print(f"knowledge: {exc}", file=sys.stderr)
         return 1

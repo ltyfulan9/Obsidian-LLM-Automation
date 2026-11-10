@@ -1,11 +1,13 @@
 # Changelog
 
-## Unreleased
+## 0.5.0
 
 - Round 1: add an offline invented demo, read-only diagnostics, shared configuration validation and a daily knowledge entrance.
 - Block generated-output feedback loops and native Codex subagent/analysis ingestion; preserve handwritten guides during upgrades.
 - Round 2: add explainable keyword search with activity-date/type filters, readable task lists and completed-outcome evidence in reviews.
 - Resolve collected note references before projection; conservatively retain unknown references, preserve code and bound malformed-bracket processing.
+- Round 3: add verified private state packages, fresh-directory restoration, pending-generation recovery and strict catalog checks that never recreate missing data silently.
+- Record each sync stage and confirmed saves separately from last success; correlate scheduled logs with the actual invocation and report blocked calls honestly.
 
 ## 0.4.0
 

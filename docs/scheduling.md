@@ -1,10 +1,10 @@
 # Windows 与 macOS 定时运行
 
-先在目标机器安装本工具到持久的 Python 环境，并手动成功运行 `knowledge sync`。调度配置使用该环境的 Python 绝对路径；不是运行仓库中的相对脚本，所以从其他工作目录也能执行。
+先在目标机器的持久 Python 环境安装本工具，手动成功运行一次 `knowledge sync`。调度使用该环境的 Python 绝对路径，不依赖启动时的工作目录。生成配置与安装任务是两个步骤；下面均以每天本地时间 21:00 为例。
 
 ## macOS：launchd
 
-也支持固定间隔：生成命令中加入 `--interval-minutes 30`，每 30 分钟运行；macOS 使用 `StartInterval`，Windows 使用重复触发器。省略该项时仍按每日 `--hour` / `--minute` 调度。完整同步范围与首次 7 天设置见[同步说明](sync-scope.md)。
+需要每 30 分钟运行时，生成命令加入 `--interval-minutes 30`；省略时按每日 `--hour` / `--minute`。首次收录范围与后续增量见[同步说明](sync-scope.md)。
 
 在 Mac 上生成配置，下面的 Python 路径按实际虚拟环境替换：
 
@@ -30,15 +30,25 @@ launchctl bootout gui/$(id -u) ~/Library/LaunchAgents/io.personal.knowledge.dail
 ```powershell
 knowledge schedule --workspace 'C:\Notes\PersonalWiki' --platform windows --hour 21 --minute 0 --output 'C:\Notes\knowledge-task.xml'
 Register-ScheduledTask -TaskName 'Personal Knowledge Daily' -Xml (Get-Content -LiteralPath 'C:\Notes\knowledge-task.xml' -Raw -Encoding UTF8)
+Start-ScheduledTask -TaskName 'Personal Knowledge Daily'
 Get-ScheduledTaskInfo -TaskName 'Personal Knowledge Daily'
 ```
 
-也可在任务计划程序中导入 XML，选择能访问源目录和各 CLI 认证的账户。需要推送时在生成命令中加入 `--push`。Windows 生成器为带空格的路径进行参数引用，并设置错过计划后可启动与禁止重叠实例。
+选择能访问源目录与 CLI 认证的账户；也可在任务计划程序导入 XML。需要发布时生成命令加 `--push`。配置已设置错过计划后可启动与禁止重叠实例。停用使用 `Disable-ScheduledTask -TaskName 'Personal Knowledge Daily'`。
 
 ## 时区与日志
 
 调度时间采用操作系统本地时间；资料归档日期采用知识库配置中的 `timezone`。跨机器同步时建议两台机器显式使用同一归档时区。
 
-macOS 标准输出与错误写入 `.knowledge/scheduler.out.log`、`.knowledge/scheduler.err.log`。两端都可通过 `knowledge status --workspace ...` 查看最近一次成功完成的结果。发生失败时以调度器退出码及错误输出为准；旧的 last-run 不代表本轮成功。
+两端生成的任务都调用 `sync --log`，将每轮结果追加到 `.knowledge/scheduler.jsonl`：成功时记录处理计数，失败时记录阶段、确认保存点和安全错误代码。macOS 另保留 `.knowledge/scheduler.out.log` 和 `.knowledge/scheduler.err.log`。这些本地状态均不提交 Git。
+
+```sh
+knowledge status --workspace "你的知识库目录" --format text
+knowledge doctor --workspace "你的知识库目录"
+```
+
+先看 `last_attempt`，再看独立保留的最后成功结果。正在运行时等待结束；失败或中断时按确认保存点及 `next_step` 重试，不删除锁文件绕过保护。`last_run` 的旧成功不代表本轮成功，生成的 Markdown 也不是实时状态面板。
+
+安装后至少手动触发一次，并同时核对系统任务状态/退出结果与本工具的最新尝试。电脑需要开机，来源与认证需要可访问。`status`/默认 `doctor` 不查询系统任务是否安装，也不验证模型推理或联网发布；需要核验私有发布入口时显式运行 `doctor --publish`。
 
 生成命令只写配置，不会自动注册或启用任务。CI 会在 macOS/Windows 上测试 Python 逻辑及调度文件结构；这与在每台用户机器实际注册并运行任务是两种验证。

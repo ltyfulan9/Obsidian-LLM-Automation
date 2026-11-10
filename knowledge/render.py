@@ -168,6 +168,9 @@ def projections(rows: list[dict], config: dict, personal: dict | None = None) ->
     home += "\n\n## 手写补充与同步范围\n\n"
     home += link("打开手写笔记与使用指南", "Notes/README.md") + " · " + link("查看来源与同步范围", "Sync.md") + "\n\n"
     home += "手写内容保存在 `Notes/`；生成页由工具维护。同步范围说明配置会处理什么，不代表后台任务已经启用或本轮运行成功。\n"
+    home += "\n## 运行与排错\n\n本页是最近一次构建的 Markdown，不是实时运行面板。查看最后一次同步尝试、已保存阶段和下一步：\n\n"
+    home += '```sh\nknowledge status --workspace "你的知识库目录" --format text\nknowledge doctor --workspace "你的知识库目录"\n```\n\n'
+    home += "将目录替换为实际工作区。状态区分最后成功与最新尝试；后台任务是否安装、是否触发仍需核对系统调度器。\n"
     files["Home.md"] = home
 
     limit = max(10, min(int(config.get("graph_max_documents", 120)), 500))

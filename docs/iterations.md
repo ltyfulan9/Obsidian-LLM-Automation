@@ -26,8 +26,16 @@ Acceptance includes real CLI search → task completion → review, historical f
 
 Local validation passed 126 tests. A real CLI journey imported four invented documents, checked 62 active local links and reached a recorded completion outcome through review evidence. The static invented example was regenerated from the same core.
 
+Round-two cross-platform CI passed at `3d46f73` ([run](https://github.com/ltyfulan9/Obsidian-LLM-Automation/actions/runs/42848987121)).
+
 ## Round 3 — Recovery and operational trust
 
-Planned acceptance: verified state backup/restore into a fresh workspace preserves personal records and incremental state; damaged/unsafe packages leave no partial workspace; recent failures and last success are shown separately; Windows/macOS diagnostics and synthetic end-to-end CI pass.
+Delivered: verified private state packages, new-directory restore/dry-run, strict catalog structural checks, staged sync attempts, confirmed-save indicators and correlated schedule logs. Recovery preserves pending render intent and edited pages that were not yet in the ownership registry.
+
+Cross-role corrections: product review identified missing catalogs being silently recreated; only initialization can now create them. Engineering tightened column/order/type/primary-key checks before summaries or writes. Design found lock-blocked logging reusing an old success; per-invocation UUIDs now emit a separate blocked-start event without altering the active owner's state or lock. State metadata shape and recovery hints are validated instead of trusting arbitrary saved text.
+
+Acceptance covers a real CLI backup → dry-run → fresh restore → build/search/review journey, unsafe/tampered package refusal, pending-generation recovery, saved-stage failures, lock interruption and no raw/provider-error content in operational metadata.
+
+Final local validation passed **171 tests**. The built v0.5.0 wheel was installed into a separate environment and exercised outside the source checkout. A native Windows scheduled job executed with exit code 0, imported no real data, reported zero updates/two unchanged records, and produced a log matching its new invocation UUID. The temporary OS task was removed. No new real model inference or user-Mac launchd registration is claimed. Final cross-platform results are linked from [validation](validation.md).
 
 Each round must contain shipped behavior, cross-role review, corrections and actual CLI verification. Three document edits do not count as three iterations.

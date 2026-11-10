@@ -17,7 +17,7 @@ class DailyJourneyCase(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory(prefix="knowledge-daily-journey-")
         self.addCleanup(self.temp.cleanup)
-        self.root = Path(self.temp.name) / "虚构 知识库"
+        self.root = (Path(self.temp.name) / "虚构 知识库").resolve()
         stack = ExitStack()
         self.addCleanup(stack.close)
         self.model = stack.enter_context(patch("knowledge.summarize.invoke_cli", side_effect=AssertionError("No model calls in this journey")))

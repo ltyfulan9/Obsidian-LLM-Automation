@@ -37,8 +37,8 @@ class OnboardingCase(unittest.TestCase):
         result = json.loads(output)
         self.assertTrue(result["synthetic"])
         self.assertEqual(result["documents"], 2)
-        self.assertEqual(Path(result["workspace"]), self.root)
-        self.assertEqual(Path(result["home"]), self.root / "Home.md")
+        self.assertEqual(Path(result["workspace"]).resolve(), self.root.resolve())
+        self.assertEqual(Path(result["home"]).resolve(), (self.root / "Home.md").resolve())
         self.assertTrue(result["next_steps"])
         for name in ("Home.md", "Timeline.md", "Tasks.md", "Review.md"):
             self.assertTrue((self.root / name).is_file(), name)

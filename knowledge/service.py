@@ -15,6 +15,7 @@ from .publish import private_target, publish
 from .render import build
 from .summarize import fingerprint, summarize
 from .magpie import export_bundle, sync_bundle, verify_target
+from .runstate import tracked_run
 
 DEFAULT_CONFIG = {
     "version": 2,
@@ -68,32 +69,40 @@ def initialize(root: Path) -> None:
     ignore = root / ".gitignore"
     previous = ignore.read_text(encoding="utf-8") if ignore.exists() else ""
     atomic_write(ignore, previous.rstrip() + "\n# Local knowledge state and authentication\n.knowledge/\n.obsidian/\n.env\n.env.*\n*.pem\n*.key\n")
-    catalog = Catalog(root)
+    catalog = Catalog(root, create=True)
     try:
         build(root, catalog.rows(), DEFAULT_CONFIG, catalog.personal_state())
     finally:
         catalog.close()
 
 
-def sync(root: Path, engine_name: str | None = None, push: bool = False, magpie: bool = False) -> dict:
-    config = load_config(root)
-    if engine_name:
-        config["engine"]["name"] = engine_name
-    with workspace_lock(root):
+def sync(root: Path, engine_name: str | None = None, push: bool = False, magpie: bool = False, *, run_id: str | None = None) -> dict:
+    with workspace_lock(root), tracked_run(root, push=push, magpie=magpie, run_id=run_id) as attempt:
+        config = load_config(root)
+        if engine_name:
+            config["engine"]["name"] = engine_name
+            validate_config(config)
         if push:
             # Refuse public destinations before reading any configured source.
+            attempt.phase("verify_target")
             private_target(root)
-        magpie_output = verify_target(config) if magpie else None
-        documents, seen = [], {}
-        for source in config["sources"]:
-            imported = read_source(source, config, root)
-            documents.extend(imported)
-            seen[source["name"]] = {document.id for document in imported}
-        engine_hash = fingerprint(config["engine"])
-        engine = dict(config["engine"], cache_dir=str(root / ".knowledge/summary-cache"))
-        changed, unchanged = 0, 0
+        magpie_output = None
+        if magpie:
+            attempt.phase("verify_magpie")
+            magpie_output = verify_target(config)
+        attempt.phase("catalog")
         catalog = Catalog(root)
         try:
+            attempt.phase("collect")
+            documents, seen = [], {}
+            for source in config["sources"]:
+                imported = read_source(source, config, root)
+                documents.extend(imported)
+                seen[source["name"]] = {document.id for document in imported}
+            engine_hash = fingerprint(config["engine"])
+            engine = dict(config["engine"], cache_dir=str(root / ".knowledge/summary-cache"))
+            changed, unchanged = 0, 0
+            attempt.phase("summarize")
             with catalog.connection:
                 for document in documents:
                     data = document.to_dict()
@@ -108,16 +117,27 @@ def sync(root: Path, engine_name: str | None = None, push: bool = False, magpie:
                     changed += 1
                 for source_name, present in seen.items():
                     catalog.mark_missing(source_name, present)
+            attempt.confirm("catalog")
+            attempt.phase("render")
             ensure_notes_guide(root)
             count = build(root, catalog.rows(), config, catalog.personal_state())
+            attempt.confirm("rendered")
             result = {"tool_version": __version__, "time": datetime.now(timezone.utc).isoformat(),
+                      "run_id": attempt.data["run_id"],
+                      "requested": {"push": push, "magpie": magpie},
                       "documents": len(documents), "updated": changed, "unchanged": unchanged, "generated_files": count,
                       "engine": config["engine"]["name"], "published_commit": None}
             if push:
+                attempt.phase("publish")
                 result["published_commit"] = publish(root, config.get("include_raw", False))
+                attempt.confirm("published")
             if magpie_output is not None:
+                attempt.phase("magpie")
                 result["magpie_bundle"] = sync_bundle(catalog.rows(), config, magpie_output)
+                attempt.confirm("magpie")
+            attempt.phase("record")
             write_json(root / ".knowledge" / "last-run.json", result)
+            attempt.result = result
             return result
         finally:
             catalog.close()

@@ -6,11 +6,54 @@ import json
 import sqlite3
 from pathlib import Path
 
+from .common import KnowledgeError
+
+
+TABLE_COLUMNS = {
+    "documents": ("id", "source", "day", "content_hash", "engine_hash", "document", "summary", "available"),
+    "checkins": ("day", "data"),
+    "commitments": ("id", "title", "created", "expected", "source_id"),
+    "commitment_events": ("seq", "task_id", "day", "kind", "data"),
+}
+TABLE_KEYS = {"documents": "id", "checkins": "day", "commitments": "id", "commitment_events": "seq"}
+
+
+def validate_schema(connection: sqlite3.Connection) -> None:
+    """Inspect the existing schema before any compatible table upgrade writes."""
+    tables = {row[0] for row in connection.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+    if "documents" not in tables:
+        raise KnowledgeError("Catalog schema is missing; keep existing files and restore a verified state backup")
+    triggers = [row[0] for row in connection.execute("SELECT tbl_name FROM sqlite_master WHERE type='trigger'")]
+    if any(not isinstance(table, str) or table.casefold() in TABLE_COLUMNS for table in triggers):
+        raise KnowledgeError("Catalog contains unsupported triggers on owned tables; keep existing files and restore a verified state backup")
+    for table, required in TABLE_COLUMNS.items():
+        if table not in tables:
+            continue
+        columns = list(connection.execute(f"PRAGMA table_info({table})"))
+        keys = {row[1]: row[5] for row in columns if row[5]}
+        invalid_types = any(row[2].upper() != ("INTEGER" if (table, row[1]) in {("documents", "available"), ("commitment_events", "seq")} else "TEXT")
+                            for row in columns)
+        if tuple(row[1] for row in columns) != required or keys != {TABLE_KEYS[table]: 1} or invalid_types:
+            raise KnowledgeError("Catalog schema is invalid; keep existing files and restore a verified state backup")
+
 
 class Catalog:
-    def __init__(self, root: Path):
-        self.connection = sqlite3.connect(root / ".knowledge" / "catalog.sqlite3")
-        self.connection.row_factory = sqlite3.Row
+    def __init__(self, root: Path, create: bool = False):
+        path = (root / ".knowledge/catalog.sqlite3").resolve()
+        self.connection = None
+        try:
+            mode = "rwc" if create else "rw"
+            self.connection = sqlite3.connect(path.as_uri() + "?mode=" + mode, uri=True)
+            if not create:
+                validate_schema(self.connection)
+            self.connection.row_factory = sqlite3.Row
+            self._initialize_tables()
+        except (sqlite3.Error, KnowledgeError) as exc:
+            if self.connection is not None:
+                self.connection.close()
+            raise KnowledgeError("Catalog is missing or invalid; run knowledge doctor and restore a verified state backup. Existing files were kept.") from exc
+
+    def _initialize_tables(self) -> None:
         self.connection.execute("""CREATE TABLE IF NOT EXISTS documents (
             id TEXT PRIMARY KEY, source TEXT NOT NULL, day TEXT NOT NULL,
             content_hash TEXT NOT NULL, engine_hash TEXT NOT NULL,

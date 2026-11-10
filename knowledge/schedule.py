@@ -17,7 +17,7 @@ def definition(root: Path, platform: str, hour: int, minute: int, push: bool = F
         raise KnowledgeError("Schedule time must be a valid hour and minute")
     if interval_minutes is not None and not 5 <= interval_minutes <= 1440:
         raise KnowledgeError("Schedule interval must be between 5 and 1440 minutes")
-    args = [python or sys.executable, "-m", "knowledge", "sync", "--workspace", str(root)]
+    args = [python or sys.executable, "-m", "knowledge", "sync", "--workspace", str(root), "--log"]
     if push:
         args.append("--push")
     if magpie:

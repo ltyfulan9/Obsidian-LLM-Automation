@@ -39,6 +39,8 @@ flowchart LR
 | `demo.py` | An offline first-run journey made entirely of invented records | Real personal source discovery |
 | `query.py` | Keyword matching, field relevance, bounded snippets and historical activity filters | Models, vectors or metadata-as-content search |
 | `links.py` | Conservative original-reference resolution shared by every summary projection | Original archive rewriting or guessing ambiguous references |
+| `backup.py` | Verified operational snapshots and fresh-directory restoration | External source attachments, Git/CLI authentication or automatic publication |
+| `runstate.py` | Atomic latest-attempt/last-success metadata, lock observation and correlated operational logs | Source content, provider stderr or OS task registration claims |
 | `schedule.py` | launchd plist / Task Scheduler XML | Installing or enabling jobs |
 
 ## Failure semantics
@@ -58,6 +60,14 @@ Every generated file is registered with a content hash. Before generation, edits
 The workspace uses an OS advisory lock: a process exit releases it even if the lock file remains. Successful model chunks are cached under ignored local state, so a later model or catalog failure does not discard paid successful calls. Timeouts clean up the spawned process group and retry a bounded number of times.
 
 Local collection and Git publication are separate. A publication failure does not roll back successfully collected knowledge. `knowledge publish` retries Git without reprocessing sources. Conflicts need human resolution; the tool never force pushes or silently rebases.
+
+Each sync records its phase and confirmed saves. One atomic `run-state.json` envelope owns the latest attempt and last complete success; `last-run.json` remains a compatibility mirror. Failure metadata uses fixed codes and recovery hints, never source bodies or provider stderr. False save flags mean unconfirmed, not proof that a remote operation did not occur. A recorded running attempt with a released lock is reported interrupted without modifying state. Manual build/publish recovery does not pretend to be a new complete sync.
+
+Generated schedules request `sync --log`. CLI invocation IDs prevent a lock-blocked command from logging another run's success. Logs distinguish blocked startup from failed pipeline stages. Markdown pages point to live status commands rather than embedding a stale running snapshot.
+
+State packages contain a consistent SQLite snapshot, configuration, ownership registry, generated pages, Notes bytes/timestamps and recovery metadata, including pending render intent. Versioned manifests verify size and SHA-256. Portable-path checks, link rejection, uniqueness and extraction budgets precede fresh-directory presentation. Restore does not collect, infer, build or publish. Packages are private but unencrypted; external attachments, unmanaged legacy folders and Git/authentication need separate backup.
+
+Normal catalog open requires an existing database and validates known columns, order, types and primary keys before compatible upgrades. Only initialization explicitly creates a database; a missing catalog cannot become an apparently empty successful search.
 
 Personal tables are added in place when opening an older catalog. Check-ins merge with exact deduplication, unless explicitly replaced; commitment events preserve date order per task. Saved personal facts remain committed if rendering fails; the error distinguishes this state and `knowledge build` regenerates pages without another provider call. Weekly projections replay only events up to the week-end cutoff, while the current week stops at today. They can change after intentional historical corrections; they are not immutable audit snapshots.
 

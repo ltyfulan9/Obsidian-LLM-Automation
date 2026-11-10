@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "obsidian-llm-knowledge"
-version = "0.4.0"
+version = "0.5.0"
 description = "Local-first personal knowledge: notes, conversations, daily journals, topic wikis and maps"
 requires-python = ">=3.10"
 dependencies = []
