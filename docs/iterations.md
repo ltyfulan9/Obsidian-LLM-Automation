@@ -12,6 +12,8 @@ Acceptance: a fresh directory completed a real Python CLI demo, diagnosis and se
 
 Cross-role corrections: design review found that diagnostic text hid source identifiers and overstated readiness; both were corrected. Engineering reproduced an old-workspace manual-entry path that bypassed the new Notes guide; check-in/task refresh now upgrades only missing guides and preserves handwritten contents. Product review confirmed that local diagnostics do not imply tested inference, publication or installed scheduling. Search explanations, original relative links and complete recovery remain open for subsequent rounds.
 
+Local validation passed 87 tests. Initial cross-platform CI exposed two tests comparing lexical temporary paths against canonical paths (Windows short names and macOS aliases); those tests now compare canonical paths, matching the filesystem invariant rather than a platform-specific spelling.
+
 ## Round 2 — Useful everyday knowledge
 
 Planned acceptance: search explains matches and allows date filtering; source-relative links cannot become dangling links in generated views; confirmed task results appear in review evidence; the daily task flow stays separate from AI suggestions.

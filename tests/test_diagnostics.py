@@ -126,7 +126,7 @@ class DiagnosticsCase(WorkspaceFixture, unittest.TestCase):
         with patch("knowledge.doctor.private_target", side_effect=KnowledgeError("unverified")) as guard:
             result = doctor(self.root, check_publish=True)
         self.assertFalse(result["ok"])
-        guard.assert_called_once_with(self.root)
+            guard.assert_called_once_with(self.root.resolve())
         self.assertEqual({item["id"] for item in result["checks"] if item["status"] == "error"}, {"engine", "publish"})
 
     def test_corrupt_catalog_is_not_replaced(self):

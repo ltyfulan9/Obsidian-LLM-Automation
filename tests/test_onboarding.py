@@ -17,7 +17,7 @@ class OnboardingCase(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory(prefix="knowledge-onboarding-")
         self.addCleanup(self.temp.cleanup)
-        self.root = Path(self.temp.name) / "demo"
+        self.root = Path(self.temp.name).resolve() / "demo"
         stack = ExitStack()
         self.addCleanup(stack.close)
         self.model = stack.enter_context(patch("knowledge.summarize.invoke_cli", side_effect=AssertionError("Demo must not call a model")))
