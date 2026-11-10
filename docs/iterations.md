@@ -14,9 +14,17 @@ Cross-role corrections: design review found that diagnostic text hid source iden
 
 Local validation passed 87 tests. Initial cross-platform CI exposed two tests comparing lexical temporary paths against canonical paths (Windows short names and macOS aliases); those tests now compare canonical paths, matching the filesystem invariant rather than a platform-specific spelling.
 
+Corrected round-one CI passed all six Linux/Windows/macOS × Python 3.10/3.12 jobs at commit `50f2953` ([run](https://github.com/ltyfulan9/Obsidian-LLM-Automation/actions/runs/42846446366)).
+
 ## Round 2 — Useful everyday knowledge
 
-Planned acceptance: search explains matches and allows date filtering; source-relative links cannot become dangling links in generated views; confirmed task results appear in review evidence; the daily task flow stays separate from AI suggestions.
+Delivered: content-field relevance, snippets, source/method/availability explanations, activity-date/type filtering, open/overdue task lists and completed-outcome review evidence. A shared reference converter resolves known original notes to source cards and preserves unknown targets as nonactive references.
+
+Cross-role corrections: product acceptance found that `task add --format text` silently ignored a list-only option; it now refuses before writing. Engineering verified historical outcome replay and list intersections. Root review found that four-space list continuations were incorrectly treated as code and that unmatched brackets could cause repeated scanning. Design added container-aware handling and a one-pass delimiter index; 12k malformed brackets processed in about 13ms in the synthetic check. Genuine code and original archive text remain unchanged.
+
+Acceptance includes real CLI search → task completion → review, historical filters that exclude later outcomes, and on-disk nested Unicode/space note links with actual target/anchor checks. Backup/restore and durable failed-attempt visibility remain the third-round gate.
+
+Local validation passed 126 tests. A real CLI journey imported four invented documents, checked 62 active local links and reached a recorded completion outcome through review evidence. The static invented example was regenerated from the same core.
 
 ## Round 3 — Recovery and operational trust
 

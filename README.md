@@ -13,7 +13,7 @@ Python 3.10+，支持 Windows、macOS。默认本地摘录，不需要模型密�
 ```sh
 knowledge demo --workspace "$HOME/KnowledgeDemo"
 knowledge doctor --workspace "$HOME/KnowledgeDemo"
-knowledge search --workspace "$HOME/KnowledgeDemo" '园艺'
+knowledge search --workspace "$HOME/KnowledgeDemo" '园艺' --format text
 ```
 
 演示用园艺与观星资料生成来源卡片、日期页、主题 Wiki、导图、一个承诺和一条每日回填。它不读取你的资料，不调用模型，也不上传文件。同一个演示目录重跑会拒绝覆盖。
@@ -61,15 +61,18 @@ knowledge sync --workspace "$HOME/PersonalWiki" --engine claude
 
 ```sh
 knowledge sync --workspace "$HOME/PersonalWiki"
-knowledge search --workspace "$HOME/PersonalWiki" 'Python'
+knowledge search --workspace "$HOME/PersonalWiki" 'Python' --kind markdown --format text
 knowledge checkin --workspace "$HOME/PersonalWiki" --done '完成可核实事项' --lesson '下一次尝试'
 knowledge task --workspace "$HOME/PersonalWiki" add '我确认执行的承诺' --expected '可验收结果'
+knowledge task --workspace "$HOME/PersonalWiki" list --status open --format text
 knowledge review --workspace "$HOME/PersonalWiki"
 ```
 
-讨论过不等于做完。完成承诺时用返回的 ID 回填 `task finish TASK_ID --outcome '实际结果'`；AI 提议不会自动成为承诺。复盘依据明确的日期记录和本地规则，不调用模型或给人格打分。缺少记录标为未知。[每日沉淀与复盘规则](docs/personal-workflow.md)。
+讨论过不等于做完。完成承诺时用返回的 ID 回填 `task finish TASK_ID --outcome '实际结果'`；实际结果在对应窗口的复盘“做成了什么”中展示，并链接到完成记录。AI 提议不会自动成为承诺。复盘依据明确的日期记录和本地规则，不调用模型或给人格打分。缺少记录标为未知。[每日沉淀与复盘规则](docs/personal-workflow.md)。
 
-搜索当前采用关键词匹配，最多返回 50 条；不要把它当作向量或语义检索。`build` 可以从已保存摘要重建视图，不再调用模型。手写知识放 `Notes/`，生成器不会改写；直接编辑生成页会触发保护，详见[故障修复](docs/workflow.md#错误恢复)。
+搜索是不区分大小写的关键词 AND 匹配，按标题、主题、摘要、结构化要点/个人记录、正文的命中优先级排列，同级按日期倒序，最多 50 条。结果显示命中片段、出处和实际整理方式；不是向量或语义搜索。可用 `--since` / `--until` 限定记录日期，`--kind` 限定类型；任务按创建或变更活动日期筛选，截止日期不参与此筛选，窗口之后的实际结果不会参与匹配。[搜索与每日旅程](docs/quickstart.md#4-开始每天使用)。
+
+`task list` 可用 `--status all|open|done|cancelled` 筛选状态，`--overdue` 仅列已过截止且仍打开的事项；这些筛选及任务的 `--format text` 只用于 `list`，默认输出仍是 JSON。`build` 可以从已保存摘要重建视图，不再调用模型。手写知识放 `Notes/`，生成器不会改写；直接编辑生成页会触发保护，详见[故障修复](docs/workflow.md#错误恢复)。
 
 ## 发布与自动化分别配置
 

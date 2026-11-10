@@ -10,6 +10,7 @@ from urllib.parse import quote
 
 from . import reflection
 from .common import digest, slug
+from .links import ReferenceLinks
 from .scope import sync_scope
 from .projection_store import commit, recover
 
@@ -46,6 +47,8 @@ def availability_label(row: dict) -> str:
 
 def projections(rows: list[dict], config: dict, personal: dict | None = None) -> dict[str, str]:
     from .personal_render import daily_blocks, projections as personal_projections
+    references = ReferenceLinks(rows)
+    rows = [dict(row, summary=references.summary(row)) for row in rows]
     personal = personal or {}
     daily = daily_blocks(personal)
     files = {}

@@ -47,10 +47,10 @@ knowledge doctor --workspace "$HOME/KnowledgeDemo"
 4. 查找虚构资料：
 
 ```sh
-knowledge search --workspace "$HOME/KnowledgeDemo" '园艺'
+knowledge search --workspace "$HOME/KnowledgeDemo" '园艺' --kind markdown --format text
 ```
 
-同一个演示目录再次运行 `demo` 会拒绝覆盖，已有资料不会被重置。要重新试用，换一个新目录。
+文本结果会显示命中片段、`demo-notes` 来源及“本地摘录”标记，打开返回的来源卡片可继续查证。同一个演示目录再次运行 `demo` 会拒绝覆盖，已有资料不会被重置。要重新试用，换一个新目录。
 
 `doctor` 默认显示可读诊断，退出码 `0` 表示没有发现阻碍，`1` 表示存在需要处理的阻碍。它不代替实际同步、模型推理或系统任务执行。脚本可使用结构化结果：
 
@@ -78,10 +78,35 @@ knowledge sync --workspace "$HOME/PersonalWiki"
 ```sh
 knowledge checkin --workspace "$HOME/PersonalWiki" --done '完成一个可核实事项' --lesson '下一次尝试'
 knowledge task --workspace "$HOME/PersonalWiki" add '我确认执行的承诺' --expected '可验收结果'
+knowledge task --workspace "$HOME/PersonalWiki" list --status open --format text
 knowledge review --workspace "$HOME/PersonalWiki"
 ```
 
-任务命令返回 ID；完成时用 `task finish TASK_ID --outcome '实际结果'`。讨论过不等于做完，AI 建议不会自动成为本人承诺。完整操作见[每日沉淀与复盘](personal-workflow.md)。
+任务命令返回 ID；完成时把下面的 `TASK_ID` 替换为实际 ID：
+
+```sh
+knowledge task --workspace "$HOME/PersonalWiki" finish TASK_ID --outcome '实际结果与证据'
+knowledge task --workspace "$HOME/PersonalWiki" list --status done --format text
+knowledge review --workspace "$HOME/PersonalWiki"
+```
+
+复盘显示截至当日仍为完成、且完成日期处于窗口内的承诺结果，在 `Review.md` 的“做成了什么”回链到完成变更。每日回填与任务结果保持独立。讨论过不等于做完，AI 建议不会自动成为本人承诺。也可以在演示目录中先完成虚构任务来体验这个闭环。
+
+任务列表支持 `--status all|open|done|cancelled`，默认 `all`；`--overdue` 只列出已过截止日期且仍打开的任务，取消、完成及未来截止的任务不会混入。任务的筛选与 `--format text` 仅适用于 `list`；不指定格式时保持 JSON 输出。完整操作见[每日沉淀与复盘](personal-workflow.md)。
+
+### 找回某段日期里的内容
+
+```sh
+knowledge search --workspace "$HOME/PersonalWiki" '观察' --kind markdown --format text
+```
+
+- 以空格分隔的多个关键词采用 AND 匹配，不区分大小写。只检索明确的内容字段；来源别名、文件路径、ID 和方法名不是关键词内容。
+- 标题命中优先于主题，再依次是摘要、结构化要点/个人记录、正文；同级按记录日期倒序，最后按输出路径稳定排列。最多返回 50 条，不做同义词扩展或语义检索。
+- 用 `--since YYYY-MM-DD`、`--until YYYY-MM-DD` 指定包含两端的日期窗口；开始日期晚于结束日期会报错。
+- `--kind` 可选 `markdown`、`codex`、`claude`、`export`、`checkin` 或 `task`。
+- 资料按资料日筛选，回填按回填日筛选；任务按创建或变更活动日期筛选，并只搜索窗口内事件的结果/原因。截止日期不是活动日期，窗口之后才记录的完成结果不会参与旧窗口匹配。
+
+没有结果时先检查关键词、类型与日期窗口；未命中不等于不存在相关语义。默认 JSON 结果保留程序接口，可读输出使用 `--format text`。
 
 ## 5. 按需增加发布与定时运行
 

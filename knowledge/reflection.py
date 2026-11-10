@@ -32,7 +32,7 @@ def text(value: str, config: dict, required: bool = True) -> str:
 
 
 def snapshots(state: dict, as_of: str) -> list[dict]:
-    tasks = {task["id"]: dict(task, status="open", due=None, outcome="", closed=None, deferrals=0)
+    tasks = {task["id"]: dict(task, status="open", due=None, outcome="", closed=None, closed_event=None, deferrals=0)
              for task in state.get("tasks", []) if task["created"] <= as_of}
     for event in sorted(state.get("events", []), key=lambda event: (event["day"], event["seq"])):
         if event["day"] > as_of or event["task_id"] not in tasks:
@@ -45,8 +45,9 @@ def snapshots(state: dict, as_of: str) -> list[dict]:
             task["status"] = "done" if event["kind"] == "finish" else "cancelled"
             task["outcome"] = event.get("outcome", event.get("reason", ""))
             task["closed"] = event["day"]
+            task["closed_event"] = event["seq"]
         elif event["kind"] == "reopen":
-            task.update(status="open", outcome="", closed=None)
+            task.update(status="open", outcome="", closed=None, closed_event=None)
     return list(tasks.values())
 
 
@@ -57,6 +58,9 @@ def report(state: dict, as_of: str) -> dict:
     tasks = snapshots(state, as_of)
     checkins = [entry for entry in state.get("checkins", []) if start <= entry["day"] <= as_of]
     overdue = [task for task in tasks if task["status"] == "open" and task["due"] and task["due"] < as_of]
+    completed = [{"id": task["id"], "title": task["title"], "day": task["closed"], "expected": task["expected"],
+                  "outcome": task["outcome"], "event": task["closed_event"]} for task in tasks
+                 if task["status"] == "done" and start <= task["closed"] <= as_of]
     findings = []
     for task in overdue:
         findings.append({"kind": "overdue", "fact": f"任务「{task['title']}」已过记录的截止日期，状态仍为未完成。",
@@ -88,9 +92,10 @@ def report(state: dict, as_of: str) -> dict:
     return {"as_of": as_of, "window_start": start, "pattern_window_start": pattern_start,
             "metrics": {"recorded_days": len(checkins), "unobserved_days": 7 - len(checkins),
                         "new_commitments": sum(start <= task["created"] <= as_of for task in tasks),
-                        "completed": sum(task["status"] == "done" and start <= task["closed"] <= as_of for task in tasks),
+                        "completed": len(completed),
                         "open_commitments": sum(task["status"] == "open" for task in tasks), "overdue": len(overdue)},
             "wins": [{"day": entry["day"], "text": value} for entry in checkins for value in entry.get("done", [])],
+            "completed_tasks": completed,
             "findings": findings,
             "limits": "依据用户回填与确认的任务；未记录不等于未完成。没有人格评分、诊断或因果结论。"}
 

@@ -144,27 +144,11 @@ def rebuild(root: Path) -> int:
             catalog.close()
 
 
-def search(root: Path, query: str) -> list[dict]:
+def search(root: Path, query: str, *, since: str | None = None, until: str | None = None, kind: str | None = None) -> list[dict]:
+    from .query import search_catalog
     load_config(root)
     catalog = Catalog(root)
     try:
-        terms = query.casefold().split()
-        results = [{"date": row["document"]["day"], "title": row["summary"]["title"],
-                 "topics": row["summary"]["topics"], "file": f"Sources/{row['document']['id']}.md"}
-                for row in catalog.rows()
-                if all(term in json.dumps(row, ensure_ascii=False).casefold() for term in terms)]
-        personal = catalog.personal_state()
-        for entry in personal["checkins"]:
-            body = " ".join(value for key in ("done", "blocked", "lessons") for value in entry[key])
-            if all(term in body.casefold() for term in terms):
-                results.append({"date": entry["day"], "title": "每日回填", "topics": [],
-                                "file": f"Daily/{entry['day']}.md#checkin"})
-        for task in personal["tasks"]:
-            events = [event for event in personal["events"] if event["task_id"] == task["id"]]
-            body = " ".join([task["title"], task["expected"]] + [event.get("outcome", event.get("reason", "")) for event in events])
-            if all(term in body.casefold() for term in terms):
-                results.append({"date": max(event["day"] for event in events), "title": task["title"], "topics": [],
-                                "file": f"Tasks.md#task-{task['id']}"})
-        return sorted(results, key=lambda result: (result["date"], result["file"]), reverse=True)[:50]
+        return search_catalog(catalog.rows(), catalog.personal_state(), query, since=since, until=until, kind=kind)
     finally:
         catalog.close()

@@ -37,6 +37,8 @@ flowchart LR
 | `config.py` | Pure, field-specific configuration validation shared by readers and writers | Filesystem inspection |
 | `doctor.py` | Read-only local readiness checks; explicit optional private-target check | Repairs, source-body reads or model calls |
 | `demo.py` | An offline first-run journey made entirely of invented records | Real personal source discovery |
+| `query.py` | Keyword matching, field relevance, bounded snippets and historical activity filters | Models, vectors or metadata-as-content search |
+| `links.py` | Conservative original-reference resolution shared by every summary projection | Original archive rewriting or guessing ambiguous references |
 | `schedule.py` | launchd plist / Task Scheduler XML | Installing or enabling jobs |
 
 ## Failure semantics
@@ -64,6 +66,12 @@ With `--push`, the target is verified private before collection and again immedi
 ## Meaning and limits
 
 Extraction is labeled as an excerpt. AI summaries are labeled for verification and retain source aliases/relative paths. Topic pages aggregate dated evidence and deduplicate decisions/questions; they do not adjudicate contradictory claims or create a verified biography.
+
+Summary references are interpreted in the original document's context before projecting into source, day and topic pages. An unambiguous collected Markdown target links to its source card. Original anchors are retained as explanatory text rather than invented summary anchors. Missing assets, ambiguous references, unsupported link forms, images and unsafe schemes are displayed as nonactive references; fenced/inline code and actual indented code are preserved. This adapter supports common Markdown and Obsidian references, not the entire Markdown grammar. Normalized raw archives remain unchanged.
+
+Search matches AND keywords against explicit content fields, not serialized JSON keys or metadata. Relevance by title, topics, summary, structured records and body precedes recency; ties are stable by file. Results retain origin alias, actual summary method, availability, matched fields and a bounded excerpt. Date filters use document/check-in dates and task activity dates; task outcomes outside a historical window cannot contribute a match.
+
+Completed commitments contribute their expected/actual outcomes and exact completion-event link to review accomplishments. Daily self-reports remain separately labeled and are not manufactured from task completion.
 
 Normalized text is held in ignored local SQLite state. `include_raw` defaults to `false`; enabling it adds normalized text to `Archive/` for optional private publication. This is a text knowledge importer, not a byte-for-byte backup of images, PDFs, plugin state or session metadata. The legacy archive script serves that older use case.
 

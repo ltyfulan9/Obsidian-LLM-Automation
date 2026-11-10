@@ -70,6 +70,14 @@ def review_page(result: dict, prefix: str = "") -> str:
               "open_commitments": "截至当日仍打开的承诺（含更早）", "overdue": "已过截止且仍打开的承诺"}
     page += "\n".join(f"| {label} | {metrics[key]} |" for key, label in labels.items()) + "\n\n"
     page += "## 做成了什么\n\n"
+    page += "### 完成的确认承诺\n\n"
+    completed = result.get("completed_tasks", [])
+    for task in completed:
+        page += f"- [{task['day']} · {inline(task['title'])}]({prefix}Tasks.md#event-{task['event']})\n"
+        page += f"  - 预计结果：{inline(task['expected']) or '未填写'}\n  - 实际结果（本人回填）：{inline(task['outcome'])}\n"
+    if not completed:
+        page += "最近七天暂无当前状态为完成的承诺记录。\n"
+    page += "\n### 每日回填\n\n"
     page += "\n".join(f"- [{win['day']}]({prefix}Daily/{win['day']}.md#checkin)：{inline(win['text'])}"
                       for win in result["wins"]) or "暂无完成事项回填；这不表示实际没有完成事项。"
     page += "\n\n## 需要核对的模式\n\n"

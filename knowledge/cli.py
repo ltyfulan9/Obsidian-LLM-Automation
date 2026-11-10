@@ -42,6 +42,9 @@ def parser() -> argparse.ArgumentParser:
             command.add_argument("--outcome", default="")
             command.add_argument("--reason", default="")
             command.add_argument("--source", help="Existing source-card ID")
+            command.add_argument("--status", choices=("all", "open", "done", "cancelled"), default="all")
+            command.add_argument("--overdue", action="store_true", help="List open commitments whose recorded due date has passed")
+            command.add_argument("--format", choices=("text", "json"), default="json")
         elif name == "review":
             command.add_argument("--as-of")
         elif name == "sync":
@@ -50,6 +53,10 @@ def parser() -> argparse.ArgumentParser:
             command.add_argument("--magpie", action="store_true")
         elif name == "search":
             command.add_argument("query")
+            command.add_argument("--since")
+            command.add_argument("--until")
+            command.add_argument("--kind", choices=("markdown", "codex", "claude", "export", "checkin", "task"))
+            command.add_argument("--format", choices=("text", "json"), default="json")
         elif name == "schedule":
             command.add_argument("--platform", choices=("macos", "windows"), required=True)
             command.add_argument("--hour", type=int, default=21)
@@ -120,8 +127,23 @@ def main(argv=None) -> int:
         elif args.command == "checkin":
             result = checkin(root, args.date, args.done, args.blocked, args.lesson, args.replace)
         elif args.command == "task":
+            if args.action != "list" and (args.status != "all" or args.overdue or args.format != "json"):
+                raise KnowledgeError("Task filters and text output apply to list only")
             result = task(root, args.action, args.value, day=args.date, due=args.due, expected=args.expected,
                           outcome=args.outcome, reason=args.reason, source_id=args.source)
+            if args.action == "list":
+                from .reflection import current_day
+                day = args.date or current_day(load_config(root))
+                result = [item for item in result if (args.status == "all" or item["status"] == args.status)
+                          and (not args.overdue or item["status"] == "open" and item["due"] and item["due"] < day)]
+                if args.format == "text":
+                    print(f"确认承诺 · 截至 {day} · {len(result)} 项")
+                    for item in result:
+                        print(f"{item['id']}  {item['status']}  {item['title'].replace(chr(10), ' ')}")
+                        print(f"  截止：{item['due'] or '未设置'} · 预计：{item['expected'] or '未填写'}")
+                        if item["outcome"]:
+                            print("  实际结果 / 关闭原因：" + item["outcome"].replace("\n", " "))
+                    return 0
         elif args.command == "review":
             result = review(root, args.as_of)
         elif args.command == "sync":
@@ -131,7 +153,22 @@ def main(argv=None) -> int:
         elif args.command == "build":
             result = {"generated_files": rebuild(root)}
         elif args.command == "search":
-            result = search(root, args.query)
+            result = search(root, args.query, since=args.since, until=args.until, kind=args.kind)
+            if args.format == "text":
+                print(f"关键词匹配 · {len(result)} 条结果（最多 50 条）")
+                labels = {"extract": "本地摘录", "codex": "AI 整理（codex CLI，待核实）", "claude": "AI 整理（claude CLI，待核实）", "self-report": "本人记录"}
+                for item in result:
+                    print(f"\n{item['date']}  {item['title']}")
+                    print(f"  {item['source']} · {labels.get(item['method'], '整理方式未记录')} · 命中：{', '.join(item['matched_fields'])}")
+                    if item["topics"]:
+                        print("  主题：" + "、".join(item["topics"]))
+                    if not item["available"]:
+                        print("  来源状态：最近采集时不可访问，保留历史记录")
+                    print("  " + item["snippet"])
+                    print("  打开：" + item["file"])
+                if not result:
+                    print("未找到匹配记录；使用空格分开的关键词，所有关键词都必须匹配。")
+                return 0
         elif args.command == "status":
             config = load_config(root)
             latest = root / ".knowledge" / "last-run.json"

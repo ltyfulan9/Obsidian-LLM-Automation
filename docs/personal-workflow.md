@@ -24,6 +24,7 @@ Windows PowerShell 请把命令放在同一行，或使用反引号续行；`--w
 ```sh
 knowledge task --workspace ~/PersonalWiki add '交付阅读工具原型' --due 2026-12-10 --expected '导入一个样本并展示搜索结果'
 knowledge task --workspace ~/PersonalWiki list
+knowledge task --workspace ~/PersonalWiki list --status open --overdue --format text
 ```
 
 返回稳定的任务 ID。同一天、同标题、同参数的重复添加不会产生重复任务；同一天同标题但参数不同会提示冲突。要关联原始依据，可在添加时传 `--source SOURCE_CARD_ID`，对应已有 `Sources/ID.md`。
@@ -49,7 +50,7 @@ knowledge review --workspace ~/PersonalWiki --as-of 2026-01-11
 knowledge search --workspace ~/PersonalWiki '等待测试环境'
 ```
 
-最近七天统计回填天数、新增承诺和当前状态为完成且关闭日期在窗口内的承诺。截至当日仍打开的承诺包含更早建立的事项。无回填日期标为“未知”，不算失败；不凭缺少记录计算完成率。
+最近七天统计回填天数、新增承诺和当前状态为完成且关闭日期在窗口内的承诺。完成的确认承诺会直接展示预计结果、实际结果与完成变更链接，不需要再重复填写一次 check-in。截至当日仍打开的承诺包含更早建立的事项。无回填日期标为“未知”，不算失败；不凭缺少记录计算完成率。
 
 目前明确实现三条规则：
 
@@ -65,7 +66,9 @@ knowledge search --workspace ~/PersonalWiki '等待测试环境'
 
 ## 模型、搜索与自动化
 
-资料摘要可选 `extract`、Codex 或 Claude CLI，模型沿用本机 CLI 配置或显式指定的 `engine.model`。**本页的任务状态和复盘规则不调用模型**，不会因服务中断停止工作，也不使用 Jev。`knowledge search` 是不区分大小写的关键词 AND 匹配，覆盖原始资料、摘要、每日回填、承诺及实际结果；按日期排序，最多返回 50 条，不是向量或语义搜索。
+资料摘要可选 `extract`、Codex 或 Claude CLI，模型沿用本机 CLI 配置或显式指定的 `engine.model`。**本页的任务状态和复盘规则不调用模型**，不会因服务中断停止工作，也不使用 Jev。`knowledge search` 是不区分大小写的关键词 AND 匹配，覆盖原始资料、摘要、每日回填、承诺及实际结果。按标题、主题、摘要、结构化记录、正文的命中优先级排序，再按日期和文件稳定排序，最多 50 条；这不是向量或语义搜索。
+
+`search --format text` 显示来源、整理方式、命中字段与片段；`--since`、`--until` 限定记录活动日期的闭区间，`--kind` 限定记录类型。任务按该窗口内创建/事件活动过滤，只检索窗口内的实际结果与原因；截止日期不作为筛选日期，后来的完成结果不会进入历史窗口。`task list` 可用 `--status` 与 `--overdue` 筛选，今天截止不算已逾期；列表可选 `--format text`，其他任务操作保留 JSON 返回。
 
 计划任务调用 `sync` 时，会在新资料整理后从已有回填和事件重新计算复盘；没有新增资料也会刷新截止状态。`checkin` 和 `task` 保存后立即重建页面。它们不自动向网络发送数据，需执行 `publish`，或等待带 `--push` 的下次同步。Magpie 仍只携带有体积限制的 AI 对话摘要，不夹带全部任务和行为记录；完整生成页只走可选的私有知识库发布。
 
