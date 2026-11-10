@@ -1,0 +1,24 @@
+# Local deployment state and configuration
+.local-state/
+config.json
+!config.example.json
+source-manifest*.json
+pending-manifest.json
+changed-sources.json
+prompt.txt
+*.log
+.env
+.env.*
+!.env.example
+*.pem
+*.p12
+*.pfx
+*.key
+# Never publish generated personal content from this template checkout
+原始笔记/
+projects/
+learning/
+journal/
+profile/
+.obsidian/
+.DS_Store
