@@ -43,6 +43,10 @@ def parser() -> argparse.ArgumentParser:
 
 
 def main(argv=None) -> int:
+    # Keep piped Chinese titles and JSON portable across Windows code pages.
+    for stream in (sys.stdout, sys.stderr):
+        if hasattr(stream, "reconfigure"):
+            stream.reconfigure(encoding="utf-8")
     args = parser().parse_args(argv)
     root = args.workspace.expanduser().resolve()
     try:
