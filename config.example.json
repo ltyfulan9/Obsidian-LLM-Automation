@@ -1,6 +1,19 @@
 {
-  "sourceVault": "C:\\Notes\\MyVault",
-  "backupVault": "C:\\Notes\\MyPrivateWiki",
-  "codexBin": "C:\\Tools\\Codex\\codex.exe",
-  "gitBin": "C:\\Program Files\\Git\\cmd\\git.exe"
+  "version": 2,
+  "timezone": "+08:00",
+  "sources": [],
+  "engine": {
+    "name": "extract",
+    "model": null,
+    "command": null,
+    "timeout_seconds": 180,
+    "chunk_chars": 16000
+  },
+  "privacy": {
+    "redact_local_paths": true,
+    "redact_emails": true
+  },
+  "include_raw": false,
+  "graph_max_documents": 120,
+  "max_file_bytes": 33554432
 }

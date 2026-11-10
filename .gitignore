@@ -22,3 +22,12 @@ journal/
 profile/
 .obsidian/
 .DS_Store
+
+# Python build and local workspaces
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+build/
+dist/
+workspaces/

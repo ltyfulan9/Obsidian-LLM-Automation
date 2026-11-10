@@ -1,0 +1,2 @@
+{"timestamp":"2026-01-05T10:00:00Z","type":"response_item","payload":{"type":"message","role":"user","content":[{"type":"input_text","text":"虚构演示：如何为 Python 知识库建立增量索引？"}]}}
+{"timestamp":"2026-01-05T10:01:00Z","type":"response_item","payload":{"type":"message","role":"assistant","content":[{"type":"output_text","text":"可以为每份资料计算内容哈希，把摘要存入 SQLite。日期页和主题 Wiki 从同一目录生成；再次导入未变资料时跳过摘要。需要用测试验证去重与更新。"}]}}

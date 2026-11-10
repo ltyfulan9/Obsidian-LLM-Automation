@@ -1,0 +1,134 @@
+{
+  "nodes": [
+    {
+      "id": "t18885f27b5af",
+      "type": "file",
+      "file": "Wiki/Python-18885f27.md",
+      "x": 0,
+      "y": 0,
+      "width": 280,
+      "height": 100
+    },
+    {
+      "id": "td7ba2d72a14c",
+      "type": "file",
+      "file": "Wiki/后端开发-d7ba2d72.md",
+      "x": 0,
+      "y": 180,
+      "width": 280,
+      "height": 100
+    },
+    {
+      "id": "td6543d3bdf2e",
+      "type": "file",
+      "file": "Wiki/学习方法-d6543d3b.md",
+      "x": 0,
+      "y": 360,
+      "width": 280,
+      "height": 100
+    },
+    {
+      "id": "t263200d7d529",
+      "type": "file",
+      "file": "Wiki/数据库-263200d7.md",
+      "x": 0,
+      "y": 540,
+      "width": 280,
+      "height": 100
+    },
+    {
+      "id": "td1af5b6220f7",
+      "type": "file",
+      "file": "Wiki/知识管理-d1af5b62.md",
+      "x": 0,
+      "y": 720,
+      "width": 280,
+      "height": 100
+    },
+    {
+      "id": "d958102e9137033ab252b9421",
+      "type": "file",
+      "file": "Sources/958102e9137033ab252b9421.md",
+      "x": 520,
+      "y": 0,
+      "width": 360,
+      "height": 110
+    },
+    {
+      "id": "d95e552cbd3a8e8707fa8d70b",
+      "type": "file",
+      "file": "Sources/95e552cbd3a8e8707fa8d70b.md",
+      "x": 520,
+      "y": 150,
+      "width": 360,
+      "height": 110
+    },
+    {
+      "id": "de65a82d664f94442862f58a3",
+      "type": "file",
+      "file": "Sources/e65a82d664f94442862f58a3.md",
+      "x": 520,
+      "y": 300,
+      "width": 360,
+      "height": 110
+    }
+  ],
+  "edges": [
+    {
+      "id": "04f694f748890fcc",
+      "fromNode": "td1af5b6220f7",
+      "fromSide": "right",
+      "toNode": "d958102e9137033ab252b9421",
+      "toSide": "left"
+    },
+    {
+      "id": "88729318aff1b9a5",
+      "fromNode": "t263200d7d529",
+      "fromSide": "right",
+      "toNode": "d958102e9137033ab252b9421",
+      "toSide": "left"
+    },
+    {
+      "id": "f77252e17165a93e",
+      "fromNode": "td7ba2d72a14c",
+      "fromSide": "right",
+      "toNode": "d958102e9137033ab252b9421",
+      "toSide": "left"
+    },
+    {
+      "id": "7b2b902123c11d02",
+      "fromNode": "td1af5b6220f7",
+      "fromSide": "right",
+      "toNode": "d95e552cbd3a8e8707fa8d70b",
+      "toSide": "left"
+    },
+    {
+      "id": "bb8a35ebe31cad21",
+      "fromNode": "td6543d3bdf2e",
+      "fromSide": "right",
+      "toNode": "d95e552cbd3a8e8707fa8d70b",
+      "toSide": "left"
+    },
+    {
+      "id": "db64f717b4c1bc48",
+      "fromNode": "td1af5b6220f7",
+      "fromSide": "right",
+      "toNode": "de65a82d664f94442862f58a3",
+      "toSide": "left"
+    },
+    {
+      "id": "ad93d6639d9717ea",
+      "fromNode": "t263200d7d529",
+      "fromSide": "right",
+      "toNode": "de65a82d664f94442862f58a3",
+      "toSide": "left"
+    },
+    {
+      "id": "c974464e4d085389",
+      "fromNode": "t18885f27b5af",
+      "fromSide": "right",
+      "toNode": "de65a82d664f94442862f58a3",
+      "toSide": "left"
+    }
+  ]
+}

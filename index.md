@@ -1,9 +1,9 @@
-# Wiki 索引模板
+# 项目文档入口
 
-将本文件复制到独立的私有备份仓库，首次整理后在此维护专题入口与来源链接。
+- [使用说明](README.md)
+- [虚构资料生成的演示 Wiki](examples/demo-wiki/Home.md)
+- [架构](docs/architecture.md)
+- [资料来源](docs/sources.md)
+- [跨平台定时任务](docs/scheduling.md)
 
-- `projects/`：项目目标、设计、决策、证据、风险与待办。
-- `learning/`：可复用的学习与技术知识。
-- `journal/`：带日期的工作记录。
-- `profile/`：经来源核对的个人经历摘要。
-- `原始笔记/`：由脚本同步的原始副本。
+真实的个人知识索引由 `knowledge init` / `knowledge sync` 在独立工作区生成。
