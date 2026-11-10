@@ -2,9 +2,9 @@
 
 把笔记和与 AI 的交流沉淀成可追溯的个人知识库，按**日期**回顾，按**主题**复用，用**导图**连接。
 
-v0.2 使用一套 Python 核心运行于 Windows 和 macOS。公共仓库存放工具与虚构演示资料，真实知识保存在独立的本地工作区，可选择同步到私有 GitHub。
+v0.3 使用一套 Python 核心运行于 Windows 和 macOS。公共仓库存放工具与虚构演示资料，真实知识保存在独立的本地工作区，可选择同步到私有 GitHub。
 
-[查看演示知识库](examples/demo-wiki/Home.md) · [演示导图](examples/demo-wiki/Maps/Mindmap.md) · [演示时间线](examples/demo-wiki/Timeline.md) · [更新记录](CHANGELOG.md)
+[同步内容与自动化说明](docs/sync-scope.md) · [查看演示知识库](examples/demo-wiki/Home.md) · [演示导图](examples/demo-wiki/Maps/Mindmap.md) · [演示时间线](examples/demo-wiki/Timeline.md) · [更新记录](CHANGELOG.md)
 
 ## 能做什么
 
@@ -64,8 +64,8 @@ knowledge sync --workspace 'C:\Notes\PersonalWiki'
 按需添加来源，再同步：
 
 ```sh
-knowledge source codex ~/.codex/sessions --workspace ~/PersonalWiki --name codex
-knowledge source claude ~/.claude/projects --workspace ~/PersonalWiki --name claude
+knowledge source codex ~/.codex/sessions --workspace ~/PersonalWiki --name codex --recent-days 7
+knowledge source claude ~/.claude/projects --workspace ~/PersonalWiki --name claude --recent-days 7
 knowledge source export ~/ChatExports --workspace ~/PersonalWiki --name exports
 knowledge sync --workspace ~/PersonalWiki
 ```
@@ -90,6 +90,7 @@ knowledge sync --workspace ~/PersonalWiki --engine claude
 PersonalWiki/
   Home.md                 首页：主题与最近日期
   Timeline.md             按月组织的日期索引
+  Sync.md                 当前同步范围与原文归档状态
   Daily/                  每日学习与交流记录
   Wiki/                   跨日期主题知识
   Sources/                带证据与出处的摘要卡片
@@ -107,6 +108,7 @@ PersonalWiki/
 knowledge search --workspace ~/PersonalWiki 'Python'
 knowledge build --workspace ~/PersonalWiki
 knowledge status --workspace ~/PersonalWiki
+knowledge plan --workspace ~/PersonalWiki
 ```
 
 `build` 从已有摘要重建视图，不重复调用模型。`sync` 采集新变化。原始正文默认只在被忽略的本地目录数据库中保存；`include_raw: true` 才额外生成 `Archive/`。本工具不替代附件与原文件的完整备份。
@@ -123,12 +125,14 @@ knowledge publish --workspace ~/PersonalWiki
 
 ## Windows 与 macOS 自动化
 
+**每天 21:00 通过 Magpie 同步压缩对话小结**：见 [Magpie 接入与体积限制](docs/magpie.md)。新增 `knowledge export-magpie` 和 `sync --magpie`；默认最近 7 天、压缩文件不超过 64 KiB。Jev 暂不接入。
+
 同一个 `sync` 命令由不同系统的原生调度器运行：
 
 - macOS：`knowledge schedule --platform macos ...` 生成 launchd plist。
 - Windows：`knowledge schedule --platform windows ...` 生成任务计划 XML。
 
-生成器不会隐式安装后台任务。[完整调度与安装步骤](docs/scheduling.md)。归档时区与系统触发时间分别配置，跨机器建议使用相同的归档时区。
+支持 `--interval-minutes 30` 每 30 分钟运行；首次范围可用 `--recent-days 7` 指定。生成器不会隐式安装后台任务。[完整调度与安装步骤](docs/scheduling.md)。归档时区与系统触发时间分别配置，跨机器建议使用相同的归档时区。
 
 ## 验证与实现边界
 

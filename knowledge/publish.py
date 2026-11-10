@@ -52,7 +52,7 @@ def publish(root: Path, include_raw: bool = False) -> str:
     # Stage removed generated files too, including archives disabled by configuration.
     deleted = run(["git", "ls-files", "--deleted", "-z"], root).split("\0")
     paths += [path for path in deleted if path and (path.startswith(("Sources/", "Daily/", "Wiki/", "Maps/", "Archive/"))
-                                                    or path in {"Home.md", "Timeline.md"}) and path not in paths]
+                                                    or path in {"Home.md", "Timeline.md", "Sync.md"}) and path not in paths]
     if (root / "Notes").exists():
         paths.append("Notes")
     paths += [".gitignore"] if (root / ".gitignore").exists() else []

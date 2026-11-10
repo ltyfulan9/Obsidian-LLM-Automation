@@ -20,7 +20,9 @@
 | `.knowledge/catalog.sqlite3` | 来源正文、内容哈希、摘要和可用性 |
 | `.knowledge/generated.json` | 生成文件及内容哈希，保护人工编辑 |
 | `.knowledge/last-run.json` | 最近成功完成的采集结果 |
-| `.knowledge/run.lock` | 排斥重叠运行 |
+| `.knowledge/run.lock` | 操作系统文件锁，阻止重叠运行；进程退出自动释放 |
+| `.knowledge/render-journal.json` | 生成中断后的恢复日志，成功后移除 |
+| `.knowledge/summary-cache/` | 成功的分段摘要缓存，失败重试时复用 |
 
 本地状态不提交。来源卡片保留来源别名/相对路径，完整的本机配置只在 `.knowledge/`。可选 raw 归档是经过适配与过滤的正文，不是 JSONL 全量副本。
 
@@ -42,7 +44,7 @@
 | 生成页人工编辑冲突 | 将手写改动移入 `Notes/`，恢复该生成页后重试，不删除生成清单 |
 | 数据已更新但生成失败 | 修正冲突后运行 `knowledge build`，无需再次调用模型 |
 | 推送失败 | 核对网络、认证、远端变化和暂存区；修复后 `knowledge publish` |
-| 锁存在 | 查清进程是否仍运行；确认无实例后手动移除遗留 `.knowledge/run.lock` |
+| 锁被占用 | 等待正在运行的实例；锁文件存在本身不代表正在运行，不要删除它绕过并发保护 |
 | 时区数据缺失 | 安装 `tzdata` 或在配置中使用 `+08:00` 等固定偏移 |
 | 大文件被拒绝 | 调整来源 include/exclude 范围，确认需要后增加 `max_file_bytes` |
 

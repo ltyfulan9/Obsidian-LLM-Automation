@@ -7,10 +7,16 @@ import re
 import shutil
 import subprocess
 import tempfile
+import time
 from pathlib import Path
 
-from .common import KnowledgeError, clean_text, digest
+from .common import KnowledgeError, clean_text, digest, read_json, write_json
 from .ingest import Document
+from .process import run as run_process
+
+
+class TransientSummaryError(KnowledgeError):
+    pass
 
 LIST_FIELDS = ("topics", "key_points", "decisions", "questions")
 SCHEMA = {
@@ -65,7 +71,7 @@ def extract(document: Document) -> dict:
 
 
 def fingerprint(engine: dict) -> str:
-    return digest("summary-v2\0" + json.dumps(engine, sort_keys=True))
+    return digest("summary-v3\0" + json.dumps({key: value for key, value in engine.items() if key != "cache_dir"}, sort_keys=True))
 
 
 def invoke_cli(prompt: str, engine: dict) -> dict:
@@ -92,10 +98,9 @@ def invoke_cli(prompt: str, engine: dict) -> dict:
             if engine.get("model"):
                 command += ["--model", engine["model"]]
         try:
-            completed = subprocess.run(command, input=prompt, text=True, encoding="utf-8", capture_output=True,
-                                       cwd=cwd, timeout=engine.get("timeout_seconds", 180), check=False)
+            completed = run_process(command, input=prompt, cwd=cwd, timeout=engine.get("timeout_seconds", 180))
         except subprocess.TimeoutExpired as exc:
-            raise KnowledgeError(f"{name} timed out; catalog was not advanced") from exc
+            raise TransientSummaryError(f"{name} timed out; catalog was not advanced") from exc
         if completed.returncode:
             # Provider errors can echo prompts or credentials; keep them out of logs.
             raise KnowledgeError(f"{name} failed with exit code {completed.returncode}; check CLI authentication separately")
@@ -115,6 +120,28 @@ def invoke_cli(prompt: str, engine: dict) -> dict:
 def summarize(document: Document, engine: dict, privacy: dict) -> dict:
     if engine["name"] == "extract":
         return validate(extract(document), privacy)
+
+    def call(prompt):
+        cache = None
+        if engine.get("cache_dir"):
+            identity = {key: engine.get(key) for key in ("name", "command", "model")}
+            cache = Path(engine["cache_dir"]) / (digest("chunk-v1" + json.dumps(identity, sort_keys=True) + prompt) + ".json")
+            if cache.exists():
+                try:
+                    return validate(read_json(cache), privacy)
+                except KnowledgeError:
+                    pass  # An invalid cache is regenerated, never used as source evidence.
+        retries = min(max(int(engine.get("retries", 1)), 0), 3)
+        for attempt in range(retries + 1):
+            try:
+                result = validate(invoke_cli(prompt, engine), privacy)
+                if cache:
+                    write_json(cache, result)
+                return result
+            except TransientSummaryError:
+                if attempt == retries:
+                    raise
+                time.sleep(min(2 ** attempt, 10))
     size = max(2000, min(int(engine.get("chunk_chars", 16000)), 80000))
     text = document.text
     # Every character participates; long conversations are chunked, never silently truncated.
@@ -128,7 +155,7 @@ def summarize(document: Document, engine: dict, privacy: dict) -> dict:
     summaries = []
     for index, chunk in enumerate(chunks):
         prompt = instruction + f"\n日期：{document.day}\n资料标题：{document.title}\n分段：{index + 1}/{len(chunks)}\n<data>\n{chunk}\n</data>"
-        summaries.append(validate(invoke_cli(prompt, engine), privacy))
+        summaries.append(call(prompt))
     if len(summaries) == 1:
         return summaries[0]
     # Hierarchical reduction also bounds the merge prompt for very large histories.
@@ -140,6 +167,6 @@ def summarize(document: Document, engine: dict, privacy: dict) -> dict:
                 merged.append(batch[0])
             else:
                 prompt = instruction + "\n合并以下同一份资料的分段摘要，去重但保留冲突与待核实事项：\n" + json.dumps(batch, ensure_ascii=False)
-                merged.append(validate(invoke_cli(prompt, engine), privacy))
+                merged.append(call(prompt))
         summaries = merged
     return summaries[0]

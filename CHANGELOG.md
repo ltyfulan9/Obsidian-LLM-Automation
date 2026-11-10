@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.3.0
+
+- Add bounded gzip conversation-summary bundles carried by Magpie's registered Library integration, with explicit private-target checks.
+- Add OS advisory locks, recoverable render journals, successful-chunk caches, bounded timeout retries and process-tree cleanup.
+
+- Add a generated `Sync.md` page and `knowledge plan` preview of exact source/publication scope.
+- Add fixed first-import date cutoffs through `source --recent-days 7`.
+- Add repeating 30-minute schedules for Windows and macOS.
+- Document Magpie configuration backup versus AI conversation summaries and private knowledge publication.
+- Validate repeated synthetic conversation updates; keep all real personal data out of the public experiment.
+- Fix the Windows task XML declaration for PowerShell's in-memory registration API.
+
 ## 0.2.0
 
 - Shared Python 3.10+ core for Windows and macOS, replacing the primary Windows-only workflow.

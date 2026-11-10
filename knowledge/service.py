@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 import re
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from pathlib import Path
 
 from . import __version__
@@ -14,6 +14,7 @@ from .ingest import read_source
 from .publish import private_target, publish
 from .render import build
 from .summarize import fingerprint, summarize
+from .magpie import export_bundle, sync_bundle, verify_target
 
 DEFAULT_CONFIG = {
     "version": 2,
@@ -60,6 +61,12 @@ def load_config(root: Path) -> dict:
         if not re.fullmatch(r"[\w\-]{1,60}", name) or name in names:
             raise KnowledgeError("Source names must be unique letters, numbers, underscores or hyphens")
         names.add(name)
+        if "since" in source:
+            try:
+                if date.fromisoformat(source["since"]).isoformat() != source["since"]:
+                    raise ValueError("Non-canonical date")
+            except (TypeError, ValueError) as exc:
+                raise KnowledgeError("Source since must be YYYY-MM-DD") from exc
         for key in ("include", "exclude"):
             if key in source and (not isinstance(source[key], list) or any(not isinstance(v, str) for v in source[key])):
                 raise KnowledgeError("Source glob rules must be lists of strings")
@@ -94,7 +101,7 @@ def initialize(root: Path) -> None:
         catalog.close()
 
 
-def sync(root: Path, engine_name: str | None = None, push: bool = False) -> dict:
+def sync(root: Path, engine_name: str | None = None, push: bool = False, magpie: bool = False) -> dict:
     config = load_config(root)
     if engine_name:
         config["engine"]["name"] = engine_name
@@ -102,12 +109,14 @@ def sync(root: Path, engine_name: str | None = None, push: bool = False) -> dict
         if push:
             # Refuse public destinations before reading any configured source.
             private_target(root)
+        magpie_output = verify_target(config) if magpie else None
         documents, seen = [], {}
         for source in config["sources"]:
             imported = read_source(source, config, root)
             documents.extend(imported)
             seen[source["name"]] = {document.id for document in imported}
         engine_hash = fingerprint(config["engine"])
+        engine = dict(config["engine"], cache_dir=str(root / ".knowledge/summary-cache"))
         changed, unchanged = 0, 0
         catalog = Catalog(root)
         try:
@@ -119,7 +128,7 @@ def sync(root: Path, engine_name: str | None = None, push: bool = False) -> dict
                     if current and current["content_hash"] == content_hash and current["engine_hash"] == engine_hash:
                         unchanged += 1
                         continue
-                    summary = summarize(document, config["engine"], config.get("privacy", {}))
+                    summary = summarize(document, engine, config.get("privacy", {}))
                     summary["method"] = config["engine"]["name"]
                     catalog.save(data, summary, content_hash, engine_hash)
                     changed += 1
@@ -131,8 +140,20 @@ def sync(root: Path, engine_name: str | None = None, push: bool = False) -> dict
                       "engine": config["engine"]["name"], "published_commit": None}
             if push:
                 result["published_commit"] = publish(root, config.get("include_raw", False))
+            if magpie_output is not None:
+                result["magpie_bundle"] = sync_bundle(catalog.rows(), config, magpie_output)
             write_json(root / ".knowledge" / "last-run.json", result)
             return result
+        finally:
+            catalog.close()
+
+
+def export_magpie(root: Path, output: Path) -> dict:
+    config = load_config(root)
+    with workspace_lock(root):
+        catalog = Catalog(root)
+        try:
+            return export_bundle(catalog.rows(), output, config)
         finally:
             catalog.close()
 

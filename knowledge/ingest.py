@@ -160,6 +160,8 @@ def read_source(source: dict, config: dict, workspace: Path) -> list[Document]:
         tz = config.get("timezone", "local")
 
         def document(day, title, text, identity="", topics=None):
+            if source.get("since") and day < source["since"]:
+                return
             stable = digest(f"{source['name']}\0{relative}\0{identity}\0{day}")[:24]
             documents.append(Document(stable, source["name"], origin, kind, day,
                                       clean_text(title, privacy)[:160], clean_text(text, privacy), topics or []))

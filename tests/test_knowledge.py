@@ -6,6 +6,9 @@ import shutil
 import subprocess
 import tempfile
 import unittest
+import io
+from contextlib import redirect_stdout
+from datetime import datetime, timezone
 from pathlib import Path
 from unittest.mock import patch
 from xml.etree import ElementTree as ET
@@ -17,6 +20,7 @@ from knowledge.ingest import Document, native_messages, read_source
 from knowledge.publish import private_target, publish
 from knowledge.schedule import definition
 from knowledge.service import initialize, load_config, rebuild, search, sync
+from knowledge.scope import sync_scope
 from knowledge.summarize import SCHEMA, summarize, validate
 
 
@@ -43,6 +47,37 @@ class WorkspaceFixture:
 
 
 class WorkspaceCase(WorkspaceFixture, unittest.TestCase):
+    def test_plan_describes_summaries_without_reading_sources_or_exposing_paths(self):
+        self.configure("claude")
+        with patch("knowledge.service.read_source") as reader, patch("knowledge.service.summarize") as model:
+            output = io.StringIO()
+            with redirect_stdout(output):
+                self.assertEqual(main(["plan", "--workspace", str(self.root)]), 0)
+            value = json.loads(output.getvalue())
+            self.assertFalse(value["raw_archive"])
+            self.assertEqual(value["sources"][0]["kind"], "claude")
+            self.assertNotIn(str(self.source), output.getvalue())
+            reader.assert_not_called()
+            model.assert_not_called()
+
+    def test_generated_scope_page_matches_config_and_omits_absolute_paths(self):
+        self.note()
+        self.configure()
+        sync(self.root)
+        page = (self.root / "Sync.md").read_text(encoding="utf-8")
+        self.assertIn("AI 对话内容小结", page)
+        self.assertIn("完整对话正文归档未启用", page)
+        self.assertNotIn(str(self.source), page)
+
+    def test_recent_days_persists_fixed_cutoff(self):
+        with patch("knowledge.cli.datetime") as clock, redirect_stdout(io.StringIO()):
+            clock.now.return_value = datetime(2026, 11, 10, 12, tzinfo=timezone.utc)
+            code = main(["source", "--workspace", str(self.root), "claude", str(self.source),
+                         "--name", "conversations", "--recent-days", "7"])
+        self.assertEqual(code, 0)
+        source = load_config(self.root)["sources"][0]
+        self.assertEqual(source["since"], "2026-11-04")
+
     @unittest.skipUnless(shutil.which("git"), "Git required")
     def test_private_publication_roundtrip_and_archive_deletion(self):
         remote = self.base / "synthetic-remote.git"
@@ -256,6 +291,32 @@ class AdapterCase(WorkspaceFixture, unittest.TestCase):
         self.configure("claude")
         self.assertEqual(sync(self.root)["documents"], 2)
 
+    def test_since_filters_message_dates_without_truncating_newer_days(self):
+        self.jsonl([{"type": "user", "timestamp": stamp, "message": {"role": "user", "content": text}}
+                    for stamp, text in [("2026-01-01T10:00:00Z", "Old message"), ("2026-01-05T10:00:00Z", "New message")]])
+        self.configure("claude", since="2026-01-04")
+        self.assertEqual(sync(self.root)["documents"], 1)
+        self.assertTrue((self.root / "Daily/2026-01-05.md").exists())
+        self.assertFalse((self.root / "Daily/2026-01-01.md").exists())
+
+    def test_repeated_automation_only_summarizes_changed_conversation(self):
+        path = self.jsonl([{"type": "user", "timestamp": "2026-01-05T10:00:00Z", "message": {"content": "Synthetic question"}}])
+        self.configure("claude")
+        summary = {"title": "Synthetic chat", "summary": "A conversation summary", "topics": ["知识管理"],
+                   "key_points": ["A reusable point"], "decisions": ["An explicit choice"], "questions": ["An open question"]}
+        with patch("knowledge.service.summarize", return_value=summary) as model:
+            first = sync(self.root)
+            second = sync(self.root)
+            self.assertEqual((first["updated"], second["updated"], model.call_count), (1, 0, 1))
+            with path.open("a", encoding="utf-8") as stream:
+                stream.write(json.dumps({"type": "assistant", "timestamp": "2026-01-05T10:01:00Z",
+                                         "message": {"content": "Synthetic answer"}}) + "\n")
+            self.assertEqual(sync(self.root)["updated"], 1)
+            self.assertEqual(model.call_count, 2)
+        topic = next((self.root / "Wiki").glob("*.md")).read_text(encoding="utf-8")
+        self.assertIn("An explicit choice", topic)
+        self.assertIn("An open question", topic)
+
     def test_claude_tools_thinking_and_sidechains_are_excluded(self):
         records = [
             {"type": "user", "message": {"role": "user", "content": [{"type": "tool_result", "content": "tool data"}]}},
@@ -290,6 +351,21 @@ class AdapterCase(WorkspaceFixture, unittest.TestCase):
 
 
 class PureCase(unittest.TestCase):
+    def test_interval_schedules_for_both_platforms(self):
+        root = Path("/synthetic/wiki")
+        plist = plistlib.loads(definition(root, "macos", 21, 0, interval_minutes=30).encode())
+        self.assertEqual(plist["StartInterval"], 1800)
+        self.assertTrue(plist["RunAtLoad"])
+        self.assertNotIn("StartCalendarInterval", plist)
+        windows = definition(root, "windows", 21, 0, interval_minutes=30)
+        self.assertNotIn('encoding=', windows.splitlines()[0])
+        xml = ET.fromstring(windows)
+        ns = {"t": "http://schemas.microsoft.com/windows/2004/02/mit/task"}
+        self.assertEqual(xml.find(".//t:TimeTrigger/t:Repetition/t:Interval", ns).text, "PT30M")
+        self.assertIsNone(xml.find(".//t:CalendarTrigger", ns))
+        with self.assertRaises(KnowledgeError):
+            definition(root, "macos", 21, 0, interval_minutes=0)
+
     def test_timezone_conversion_and_offsets(self):
         self.assertEqual(day_of("2026-01-01T20:00:00Z", 0, "+08:00"), "2026-01-02")
         self.assertEqual(day_of("2026-01-01T01:00:00Z", 0, "-05:00"), "2025-12-31")

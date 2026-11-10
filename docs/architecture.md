@@ -38,7 +38,9 @@ Collection reads explicit roots and applies include/exclude globs. Sources canno
 
 Content and engine configuration hashes decide whether a summary needs updating. Model failures roll back the current catalog transaction. Rendering follows a successful transaction and can be retried with `knowledge build` without repeating model calls.
 
-Every generated file is registered with a content hash. Before generation, edits to existing generated pages stop the build. Move intended handwritten edits to `Notes/`, restore the generated page, then retry. Do not remove the registry as a workaround. Individual writes are atomic; a power loss between multiple output writes may require manual reconciliation with the registry. This is not a filesystem-wide transaction.
+Every generated file is registered with a content hash. Before generation, edits to existing generated pages stop the build. Move intended handwritten edits to `Notes/`, restore the generated page, then retry. A durable render journal records old hashes and intended content before pages change. The next build resumes an interrupted generation, accepting only old or intended hashes; edits made after interruption stop recovery. This is recoverable multi-file generation, not a filesystem-wide transaction.
+
+The workspace uses an OS advisory lock: a process exit releases it even if the lock file remains. Successful model chunks are cached under ignored local state, so a later model or catalog failure does not discard paid successful calls. Timeouts clean up the spawned process group and retry a bounded number of times.
 
 Local collection and Git publication are separate. A publication failure does not roll back successfully collected knowledge. `knowledge publish` retries Git without reprocessing sources. Conflicts need human resolution; the tool never force pushes or silently rebases.
 

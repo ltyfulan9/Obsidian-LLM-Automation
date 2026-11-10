@@ -4,6 +4,8 @@
 
 ## macOS：launchd
 
+也支持固定间隔：生成命令中加入 `--interval-minutes 30`，每 30 分钟运行；macOS 使用 `StartInterval`，Windows 使用重复触发器。省略该项时仍按每日 `--hour` / `--minute` 调度。完整同步范围与首次 7 天设置见[同步说明](sync-scope.md)。
+
 在 Mac 上生成配置，下面的 Python 路径按实际虚拟环境替换：
 
 ```sh

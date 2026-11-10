@@ -32,6 +32,8 @@ def atomic_write(path: Path, text: str) -> None:
     try:
         with os.fdopen(fd, "w", encoding="utf-8", newline="\n") as output:
             output.write(text)
+            output.flush()
+            os.fsync(output.fileno())
         os.replace(temporary, path)
     finally:
         if os.path.exists(temporary):
@@ -101,13 +103,29 @@ def clean_text(text: str, privacy: dict) -> str:
 @contextmanager
 def workspace_lock(root: Path):
     lock = root / ".knowledge" / "run.lock"
+    handle = lock.open("a+b")
     try:
-        fd = os.open(lock, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
-    except FileExistsError as exc:
-        raise KnowledgeError("Workspace locked; check the running process before removing .knowledge/run.lock") from exc
+        if lock.stat().st_size == 0:
+            handle.write(b"\0")
+            handle.flush()
+        handle.seek(0)
+        if os.name == "nt":
+            import msvcrt
+            msvcrt.locking(handle.fileno(), msvcrt.LK_NBLCK, 1)
+        else:
+            import fcntl
+            fcntl.flock(handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except OSError as exc:
+        handle.close()
+        raise KnowledgeError("Another knowledge run holds this workspace lock") from exc
     try:
-        with os.fdopen(fd, "w") as stream:
-            stream.write(str(os.getpid()))
         yield
     finally:
-        lock.unlink(missing_ok=True)
+        handle.seek(0)
+        if os.name == "nt":
+            msvcrt.locking(handle.fileno(), msvcrt.LK_UNLCK, 1)
+        else:
+            fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
+        handle.close()
+        # Leave the inode in place. OS locks are released on process death;
+        # deleting/recreating a lock file would allow an inode race on Unix.

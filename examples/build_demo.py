@@ -17,8 +17,8 @@ def main():
         config["timezone"] = "+08:00"
         config["sources"] = [
             {"name": "demo-notes", "kind": "markdown", "path": str(example / "inputs/notes")},
-            {"name": "demo-codex", "kind": "codex", "path": str(example / "inputs/codex")},
-            {"name": "demo-claude", "kind": "claude", "path": str(example / "inputs/claude")},
+            {"name": "demo-codex", "kind": "codex", "path": str(example / "inputs/codex"), "since": "2026-01-01"},
+            {"name": "demo-claude", "kind": "claude", "path": str(example / "inputs/claude"), "since": "2026-01-01"},
         ]
         write_json(root / ".knowledge/config.json", config)
         result = sync(root)

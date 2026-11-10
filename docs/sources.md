@@ -33,6 +33,8 @@ knowledge source export ~/ChatExports --workspace ~/PersonalWiki --name exports
 
 ## 日期与主题
 
+添加对话源时可指定 `--recent-days 7`，按配置时区计算含当天的 7 个自然日，并在本地配置中保存固定 `since` 日期。之后持续导入这个起点之后的新内容，不滚动删除旧知识。可通过 `knowledge plan` 在读取正文前预览来源和日期范围。
+
 - Markdown 优先采用 `date: YYYY-MM-DD` 或文件名中的日期，再回退到文件修改时间。
 - 对话按每条消息时间戳换算到配置时区，跨日拆成多个日期资料；无时间戳时回退到文件修改时间。
 - `timezone` 默认 `local`。可设 `+08:00`、`UTC` 或 IANA 名称；Windows 缺少 IANA 数据时安装 `tzdata` 或使用固定偏移。

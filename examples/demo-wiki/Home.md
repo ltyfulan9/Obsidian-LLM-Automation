@@ -6,6 +6,8 @@
 
 [时间线](Timeline.md) · [主题导图](Maps/Mindmap.md) · [关系图](Maps/Graph.md) · [Obsidian Canvas](Maps/Knowledge.canvas)
 
+[查看同步范围](Sync.md)
+
 ## 主题 Wiki
 
 - [Python](Wiki/Python-18885f27.md) · 1 份来源
