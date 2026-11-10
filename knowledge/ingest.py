@@ -120,6 +120,8 @@ def is_link(path: Path) -> bool:
 
 
 def source_files(source: dict, workspace: Path):
+    # macOS /var aliases and Windows short/junction paths must be compared canonically.
+    workspace = workspace.expanduser().resolve()
     base = Path(source["path"]).expanduser().resolve()
     if not base.exists():
         raise KnowledgeError(f"Configured source is missing: {source['name']}")

@@ -67,6 +67,7 @@ def load_config(root: Path) -> dict:
 
 
 def initialize(root: Path) -> None:
+    root = root.expanduser().resolve()
     code_root = Path(__file__).resolve().parent.parent
     if root == code_root or root.is_relative_to(code_root):
         raise KnowledgeError("Create the private knowledge workspace outside the public tool checkout")

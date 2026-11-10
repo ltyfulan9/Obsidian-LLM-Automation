@@ -159,6 +159,12 @@ class WorkspaceCase(WorkspaceFixture, unittest.TestCase):
         with self.assertRaisesRegex(KnowledgeError, "must not contain"):
             sync(self.root)
 
+    def test_output_path_alias_is_canonicalized_before_boundary_check(self):
+        source = {"name": "fixture", "kind": "markdown", "path": str(self.base)}
+        alias = self.base / "wiki" / ".." / "wiki"
+        with self.assertRaisesRegex(KnowledgeError, "must not contain"):
+            read_source(source, self.config, alias)
+
     def test_canvas_edges_and_files_are_valid(self):
         self.note()
         self.configure()
