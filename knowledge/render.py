@@ -8,6 +8,7 @@ from collections import defaultdict
 from pathlib import Path
 from urllib.parse import quote
 
+from . import reflection
 from .common import digest, slug
 from .scope import sync_scope
 from .projection_store import commit, recover
@@ -29,6 +30,18 @@ def card_path(row: dict) -> str:
 
 def items(values: list[str]) -> str:
     return "\n".join("- " + value.replace("\n", "\n  ") for value in values) or "- 暂无记录。"
+
+
+def method_label(summary: dict) -> str:
+    if summary.get("method") == "extract":
+        return "本地摘录，未经语义归纳"
+    if summary.get("method") in {"codex", "claude"}:
+        return "AI 整理，请核对来源"
+    return "整理方式未记录，请核对来源"
+
+
+def availability_label(row: dict) -> str:
+    return "最近采集时来源可访问" if row["available"] else "来源已删除、改名或不再匹配筛选；保留历史记录"
 
 
 def projections(rows: list[dict], config: dict, personal: dict | None = None) -> dict[str, str]:
@@ -67,8 +80,8 @@ def projections(rows: list[dict], config: dict, personal: dict | None = None) ->
         for topic in summary["topics"]:
             by_topic[topic].append(row)
         # Method is recorded in the summary rather than inferred from today's config.
-        method = "本地摘录，未经语义归纳" if summary.get("method") == "extract" else "AI 整理，请核对来源"
-        source_status = "来源可访问" if row["available"] else "来源已删除、改名或不再匹配筛选；保留历史记录"
+        method = method_label(summary)
+        source_status = availability_label(row)
         page = f"# {label(summary['title'])}\n\n"
         page += f"- 日期：{document['day']}\n- 来源类型：{document['kind']}\n- 来源：`{document['source']}/{document['origin']}`\n"
         page += f"- 状态：{source_status}\n- 整理方式：{method}\n"
@@ -89,7 +102,8 @@ def projections(rows: list[dict], config: dict, personal: dict | None = None) ->
         page += daily.get(day, "")
         for row in entries:
             summary = row["summary"]
-            page += "## " + link(summary["title"], "../" + card_path(row)) + "\n\n" + summary["summary"] + "\n\n"
+            page += "## " + link(summary["title"], "../" + card_path(row)) + "\n\n"
+            page += method_label(summary) + " · " + availability_label(row) + "\n\n" + summary["summary"] + "\n\n"
             if summary["decisions"]:
                 page += "### 决策\n\n" + items(summary["decisions"]) + "\n\n"
             if summary["questions"]:
@@ -105,24 +119,53 @@ def projections(rows: list[dict], config: dict, personal: dict | None = None) ->
         page += "## 已记录的决策\n\n" + items(decisions) + "\n\n## 尚待解决\n\n" + items(questions) + "\n\n## 来源与时间\n\n"
         for row in entries:
             page += "### " + row["document"]["day"] + " · " + link(row["summary"]["title"], "../" + card_path(row)) + "\n\n"
+            page += method_label(row["summary"]) + " · " + availability_label(row) + "\n\n"
             page += row["summary"]["summary"] + "\n\n"
         files[f"Wiki/{slug(topic)}.md"] = page
 
     files["Timeline.md"] = "# 知识时间线\n\n" + "\n\n".join(
         "## " + month + "\n\n" + "\n".join("- " + link(day, f"Daily/{day}.md") + f" · {len(by_day[day])} 份资料" for day in days)
         for month, days in sorted(by_month.items(), reverse=True)) + "\n"
-    files["Home.md"] = (
-        "# 个人知识库\n\n"
-        f"共 **{len(rows)}** 份日期资料、**{len(by_topic)}** 个主题、**{len(by_day)}** 个日期。\n\n"
-        + link("时间线", "Timeline.md") + " · " + link("主题导图", "Maps/Mindmap.md") + " · "
-        + link("关系图", "Maps/Graph.md") + " · " + link("Obsidian Canvas", "Maps/Knowledge.canvas") + "\n\n"
-        + link("查看同步范围", "Sync.md") + "\n\n"
-        + link("承诺与实际结果", "Tasks.md") + " · " + link("行为复盘与每周回看", "Review.md") + "\n\n"
-        "每天采集资料，再回填完成事项、阻碍和教训；确认承诺后记录实际结果，用有日期依据的复盘检查改进。\n\n"
-        "## 主题 Wiki\n\n" + ("\n".join("- " + link(topic, f"Wiki/{slug(topic)}.md") + f" · {len(entries)} 份来源" for topic, entries in sorted(by_topic.items())) or "尚未导入资料。")
-        + "\n\n## 最近日记\n\n" + "\n".join("- " + link(day, f"Daily/{day}.md") for day in sorted(by_day, reverse=True)[:14])
-        + "\n\n## 手写知识\n\n在 `Notes/` 保存长期笔记，生成器不会改写此目录。\n"
-    )
+    today = reflection.current_day(config)
+    pending = [task for task in reflection.snapshots(personal, today) if task["status"] == "open"]
+    pending.sort(key=lambda task: (task["due"] is None, task["due"] or "", task["created"], task["id"]))
+    overdue = sum(bool(task["due"] and task["due"] < today) for task in pending)
+    has_checkin = any(entry["day"] == today for entry in personal.get("checkins", []))
+    home = "# 个人知识工作台\n\n"
+    home += f"**{len(rows)}** 份资料 · **{len(by_topic)}** 个主题 · **{len(by_day)}** 个有记录日期（含资料、回填与承诺变更）。\n\n"
+    home += f"## 今天 · {today}\n\n"
+    if today in by_day:
+        home += link("打开今天的记录", f"Daily/{today}.md") + f" · {len(by_day[today])} 份资料 · 每日回填：{'已记录' if has_checkin else '尚无记录'}。\n\n"
+    else:
+        home += "今天还没有资料或回填记录。可以同步新增资料，也可以先记录现实中的结果。\n\n"
+    home += link("承诺与实际结果", "Tasks.md") + " · " + link("行为复盘与每周回看", "Review.md") + "\n\n"
+    if not rows:
+        home += "### 开始积累资料\n\n"
+        if config["sources"]:
+            home += f"已配置 {len(config['sources'])} 个来源，尚无已整理资料。先运行同步，再打开本页查看结果。\n\n"
+            home += '```sh\nknowledge sync --workspace "你的知识库目录"\n```\n\n'
+        else:
+            home += "还没有添加资料来源。要导入笔记，先把下面两个目录替换为实际路径，添加来源后再同步；也可以先使用手写补充与每日回填。\n\n"
+            home += '```sh\nknowledge source markdown "你的笔记目录" --workspace "你的知识库目录" --name notes\nknowledge sync --workspace "你的知识库目录"\n```\n\n'
+    home += "## 待跟进\n\n"
+    home += f"本人确认且仍打开的承诺：**{len(pending)}** 项，其中 **{overdue}** 项已过记录的截止日期，需核对实际结果。\n\n"
+    for task in pending[:10]:
+        status = "已过截止，待核对" if task["due"] and task["due"] < today else "今天截止" if task["due"] == today else "未完成"
+        home += f"- [{label(task['title'])}](Tasks.md#task-{task['id']}) · {status} · 截止：{task['due'] or '未设置'}\n"
+    if not pending:
+        home += "暂无打开的确认承诺。资料中的计划与 AI 建议不会自动算成你的待办。\n"
+    if len(pending) > 10:
+        home += "\n这里只显示前 10 项；完整状态与历史见承诺页。\n"
+    home += "\n## 最近记录\n\n"
+    home += "\n".join("- " + link(day, f"Daily/{day}.md") for day in sorted(by_day, reverse=True)[:14]) or "尚无日期记录。"
+    home += "\n\n## 浏览知识\n\n"
+    home += link("全部日期", "Timeline.md") + " · " + link("主题导图", "Maps/Mindmap.md") + " · " + link("关系图", "Maps/Graph.md") + " · " + link("Obsidian Canvas", "Maps/Knowledge.canvas") + "\n\n"
+    home += "### 主题 Wiki\n\n"
+    home += "\n".join("- " + link(topic, f"Wiki/{slug(topic)}.md") + f" · {len(entries)} 份来源" for topic, entries in sorted(by_topic.items())) or "导入资料后，主题会在这里出现。"
+    home += "\n\n## 手写补充与同步范围\n\n"
+    home += link("打开手写笔记与使用指南", "Notes/README.md") + " · " + link("查看来源与同步范围", "Sync.md") + "\n\n"
+    home += "手写内容保存在 `Notes/`；生成页由工具维护。同步范围说明配置会处理什么，不代表后台任务已经启用或本轮运行成功。\n"
+    files["Home.md"] = home
 
     limit = max(10, min(int(config.get("graph_max_documents", 120)), 500))
     graph_rows = rows[:limit]

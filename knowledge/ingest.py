@@ -11,6 +11,7 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 
 from .common import KnowledgeError, clean_text, day_of, digest
+from .projection_store import generated_area
 
 
 @dataclass
@@ -58,6 +59,13 @@ def jsonl_records(path: Path) -> list[dict]:
 
 
 def native_messages(records: list[dict], kind: str) -> list[tuple[str, str, object]]:
+    if kind == "codex":
+        for record in records:
+            metadata = record.get("payload", {})
+            if record.get("type") == "session_meta" and isinstance(metadata, dict):
+                source = metadata.get("source")
+                if source == "subagent" or isinstance(source, dict) and "subagent" in source:
+                    return []
     messages = []
     for record in records:
         if kind == "codex":
@@ -66,6 +74,8 @@ def native_messages(records: list[dict], kind: str) -> list[tuple[str, str, obje
                 continue
             if record.get("type") == "response_item" and payload.get("type") == "message":
                 role = payload.get("role")
+                if role == "assistant" and payload.get("channel", record.get("channel")) == "analysis":
+                    continue
                 if role in {"user", "assistant"}:
                     text = text_content(payload.get("content"))
                     if text.strip():
@@ -127,6 +137,8 @@ def source_files(source: dict, workspace: Path):
         raise KnowledgeError(f"Configured source is missing: {source['name']}")
     if base == workspace or workspace.is_relative_to(base):
         raise KnowledgeError("Source must not contain the output workspace")
+    if base.is_relative_to(workspace) and generated_area(base.relative_to(workspace)):
+        raise KnowledgeError("Source must not read generated knowledge directories; use Notes/ for handwritten input")
     extensions = {"markdown": {".md"}, "codex": {".jsonl"}, "claude": {".jsonl"}, "export": {".md", ".json", ".jsonl"}}[source["kind"]]
     if base.is_file():
         candidates = [base]

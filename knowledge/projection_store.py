@@ -4,13 +4,22 @@ from pathlib import Path, PurePosixPath
 
 from .common import KnowledgeError, atomic_write, digest, read_json, write_json
 
+ROOT_FILES = {"Home.md", "Timeline.md", "Sync.md", "Tasks.md", "Review.md"}
+MANAGED_DIRS = {"Sources", "Daily", "Wiki", "Maps", "Archive", "Reviews"}
+
+
+def generated_area(relative: Path) -> bool:
+    parts = relative.parts
+    return bool(parts) and (parts[0].casefold() in {value.casefold() for value in MANAGED_DIRS}
+                            or len(parts) == 1 and parts[0].casefold() in {value.casefold() for value in ROOT_FILES})
+
 
 def target_path(root: Path, relative: str) -> Path:
     if not isinstance(relative, str) or "\\" in relative:
         raise KnowledgeError("Invalid generated path")
     parts = PurePosixPath(relative).parts
-    allowed = relative in {"Home.md", "Timeline.md", "Sync.md", "Tasks.md", "Review.md"} or (
-        len(parts) == 2 and parts[0] in {"Sources", "Daily", "Wiki", "Maps", "Archive", "Reviews"}
+    allowed = relative in ROOT_FILES or (
+        len(parts) == 2 and parts[0] in MANAGED_DIRS
         and parts[1] not in {".", ".."} and relative.endswith((".md", ".canvas")))
     target = root / relative
     if not allowed or not target.resolve().is_relative_to(root.resolve()) or target.is_symlink():

@@ -97,7 +97,9 @@ def report(state: dict, as_of: str) -> dict:
 
 def refresh(root: Path, catalog: Catalog, config: dict) -> None:
     from .render import build
+    from .service import ensure_notes_guide
     try:
+        ensure_notes_guide(root)
         build(root, catalog.rows(), config, catalog.personal_state())
     except (KnowledgeError, OSError) as exc:
         raise KnowledgeError("Personal record saved locally, but pages could not be refreshed. "

@@ -3,13 +3,13 @@
 from __future__ import annotations
 
 import json
-import re
-from datetime import date, datetime, timezone
+from datetime import datetime, timezone
 from pathlib import Path
 
 from . import __version__
 from .catalog import Catalog
-from .common import KnowledgeError, atomic_write, digest, get_timezone, read_json, workspace_lock, write_json
+from .common import KnowledgeError, atomic_write, digest, read_json, workspace_lock, write_json
+from .config import validate_config
 from .ingest import read_source
 from .publish import private_target, publish
 from .render import build
@@ -29,48 +29,21 @@ DEFAULT_CONFIG = {
 
 
 def load_config(root: Path) -> dict:
-    config = read_json(root / ".knowledge" / "config.json")
-    if not isinstance(config, dict) or not isinstance(config.get("engine"), dict):
-        raise KnowledgeError("Config must contain an engine object")
-    if config.get("version") != 2 or config["engine"].get("name") not in {"extract", "codex", "claude"}:
-        raise KnowledgeError("Unsupported config version or summary engine")
-    if not isinstance(config.get("sources"), list) or not isinstance(config.get("privacy", {}), dict):
-        raise KnowledgeError("Config sources must be a list and privacy an object")
-    if not isinstance(config.get("timezone", "local"), str):
-        raise KnowledgeError("Timezone must be a string")
-    get_timezone(config.get("timezone", "local"))
-    for key, fallback in (("timeout_seconds", 180), ("chunk_chars", 16000)):
-        value = config["engine"].get(key, fallback)
-        if type(value) is not int or value <= 0:
-            raise KnowledgeError(f"Engine {key} must be a positive integer")
-    for key in ("model", "command"):
-        if config["engine"].get(key) is not None and not isinstance(config["engine"][key], str):
-            raise KnowledgeError(f"Engine {key} must be a string or null")
-    for key, fallback in (("graph_max_documents", 120), ("max_file_bytes", 33554432)):
-        if type(config.get(key, fallback)) is not int or config.get(key, fallback) <= 0:
-            raise KnowledgeError(f"{key} must be a positive integer")
-    if type(config.get("include_raw", False)) is not bool:
-        raise KnowledgeError("include_raw must be a boolean")
-    names = set()
-    for source in config.get("sources", []):
-        if not isinstance(source, dict):
-            raise KnowledgeError("Each source must be an object")
-        if source.get("kind") not in {"markdown", "codex", "claude", "export"} or not source.get("path"):
-            raise KnowledgeError("Invalid source configuration")
-        name = source.get("name", "")
-        if not re.fullmatch(r"[\w\-]{1,60}", name) or name in names:
-            raise KnowledgeError("Source names must be unique letters, numbers, underscores or hyphens")
-        names.add(name)
-        if "since" in source:
-            try:
-                if date.fromisoformat(source["since"]).isoformat() != source["since"]:
-                    raise ValueError("Non-canonical date")
-            except (TypeError, ValueError) as exc:
-                raise KnowledgeError("Source since must be YYYY-MM-DD") from exc
-        for key in ("include", "exclude"):
-            if key in source and (not isinstance(source[key], list) or any(not isinstance(v, str) for v in source[key])):
-                raise KnowledgeError("Source glob rules must be lists of strings")
-    return config
+    return validate_config(read_json(root / ".knowledge" / "config.json"))
+
+
+def ensure_notes_guide(root: Path) -> None:
+    notes = root / "Notes"
+    if not notes.resolve().is_relative_to(root.resolve()):
+        raise KnowledgeError("Notes must stay inside the knowledge workspace")
+    notes.mkdir(exist_ok=True)
+    try:
+        with (notes / "README.md").open("x", encoding="utf-8", newline="\n") as output:
+            output.write("# 手写知识与补充\n\n这是手写知识的默认入口，可以自由编辑；工具不会覆盖已有文件。\n\n"
+                         "[知识库首页](../Home.md) · [日期时间线](../Timeline.md) · [承诺与结果](../Tasks.md) · [行为复盘](../Review.md)\n\n"
+                         "直接修改生成页会触发保护；把自己的补充保存在本目录，保留原始来源供查证。\n")
+    except FileExistsError:
+        pass
 
 
 def initialize(root: Path) -> None:
@@ -90,6 +63,7 @@ def initialize(root: Path) -> None:
     root.mkdir(parents=True, exist_ok=True)
     (root / ".knowledge").mkdir()
     (root / "Notes").mkdir(exist_ok=True)
+    ensure_notes_guide(root)
     write_json(root / ".knowledge" / "config.json", DEFAULT_CONFIG)
     ignore = root / ".gitignore"
     previous = ignore.read_text(encoding="utf-8") if ignore.exists() else ""
@@ -134,6 +108,7 @@ def sync(root: Path, engine_name: str | None = None, push: bool = False, magpie:
                     changed += 1
                 for source_name, present in seen.items():
                     catalog.mark_missing(source_name, present)
+            ensure_notes_guide(root)
             count = build(root, catalog.rows(), config, catalog.personal_state())
             result = {"tool_version": __version__, "time": datetime.now(timezone.utc).isoformat(),
                       "documents": len(documents), "updated": changed, "unchanged": unchanged, "generated_files": count,
@@ -163,6 +138,7 @@ def rebuild(root: Path) -> int:
     with workspace_lock(root):
         catalog = Catalog(root)
         try:
+            ensure_notes_guide(root)
             return build(root, catalog.rows(), config, catalog.personal_state())
         finally:
             catalog.close()

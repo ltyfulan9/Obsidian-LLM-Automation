@@ -1,174 +1,105 @@
 # Obsidian LLM · Personal Knowledge
 
-把笔记和与 AI 的交流沉淀成可追溯的个人知识库，按**日期**回顾，按**主题**复用，用**导图**连接。
+把你明确选择的本机笔记和 AI 对话整理成**有出处、能查找、可复盘**的个人知识库。按日期回顾，按主题复用；把本人确认的承诺与实际结果分开保存。
 
-v0.4 使用一套 Python 核心运行于 Windows 和 macOS，加入**每日回填、确认承诺、实际结果和有据可查的长期复盘**。公共仓库存放工具与虚构演示资料，真实知识保存在独立的本地工作区，可选择同步到私有 GitHub。
+Python 3.10+，支持 Windows、macOS。默认本地摘录，不需要模型密钥；真实资料保存在独立工作区，公共仓库只包含工具和虚构示例。
 
-[同步内容与自动化说明](docs/sync-scope.md) · [查看演示知识库](examples/demo-wiki/Home.md) · [演示导图](examples/demo-wiki/Maps/Mindmap.md) · [演示时间线](examples/demo-wiki/Timeline.md) · [更新记录](CHANGELOG.md)
+[安装与首次使用](docs/quickstart.md) · [查看虚构知识库](examples/demo-wiki/Home.md) · [查看虚构复盘](examples/demo-wiki/Review.md) · [产品定义与三轮验收](docs/product.md)
 
-[每日沉淀与复盘流程](docs/personal-workflow.md) · [查看虚构行为复盘](examples/demo-wiki/Review.md) · [查看承诺与实际结果](examples/demo-wiki/Tasks.md)
+## 先用虚构资料试一遍
 
-## 能做什么
+在本仓库[安装并激活独立 Python 环境](docs/quickstart.md#1-安装到独立环境)后，选择一个新目录：
 
-| 入口 | 产物 |
+```sh
+knowledge demo --workspace "$HOME/KnowledgeDemo"
+knowledge doctor --workspace "$HOME/KnowledgeDemo"
+knowledge search --workspace "$HOME/KnowledgeDemo" '园艺'
+```
+
+演示用园艺与观星资料生成来源卡片、日期页、主题 Wiki、导图、一个承诺和一条每日回填。它不读取你的资料，不调用模型，也不上传文件。同一个演示目录重跑会拒绝覆盖。
+
+命令返回 `Home.md` 的位置。用 Obsidian 打开这个目录，从首页进入；在 `Notes/` 查看手写指南。诊断默认显示可读结果，自动化可用 `doctor --format json`。完整步骤见[快速开始](docs/quickstart.md)。
+
+## 换成自己的资料
+
+另建真实工作区，将 `MyNotes` 替换成实际来源目录：
+
+```sh
+knowledge init --workspace "$HOME/PersonalWiki"
+knowledge source markdown "$HOME/MyNotes" --workspace "$HOME/PersonalWiki" --name notes
+knowledge doctor --workspace "$HOME/PersonalWiki"
+knowledge sync --workspace "$HOME/PersonalWiki"
+```
+
+来源只读。工具只采集明确配置且匹配规则的文件，工作区不能放在公共工具仓库内，也不能放在某个来源目录内部。来源添加只登记路径，`sync` 才读取内容。
+
+| 资料或操作 | 能得到什么 |
 | --- | --- |
-| Obsidian / Markdown | 将指定笔记目录整理为带来源的知识卡片 |
-| Codex / Claude Code | 读取明确配置的本机会话 JSONL，只提取用户与助手正文 |
-| 手动导出的聊天 | 支持 Markdown、通用 JSON/JSONL 与 Claude 会话导出格式 |
-| 日期 | `Daily/YYYY-MM-DD.md` 日记、`Timeline.md` 时间线；对话跨日按时区拆分 |
-| 主题 | `Wiki/` 聚合来源摘要、明确决策、待解决问题 |
-| 导图 | Mermaid 思维导图、关系图和可在 Obsidian 打开的 Canvas |
-| 持续更新 | 内容哈希去重、增量摘要、本地搜索、Windows/macOS 调度配置 |
-| 每日回填 | 本人记录完成事项、阻碍和教训，与 AI 归纳区分 |
-| 承诺与复盘 | 保存预计和实际结果、改期原因，生成有日期依据的周复盘 |
+| Obsidian / Markdown | 带来源的资料卡片与日期、主题视图 |
+| Codex / Claude Code 本机会话 | 用户与助手正文的小结；跨日按配置时区拆分 |
+| 明确导出的聊天文件 | Markdown、通用 JSON/JSONL 和 Claude 会话导出适配 |
+| 日期与主题 | `Daily/`、`Timeline.md`、`Wiki/`，连接同一份来源证据 |
+| 导图 | Mermaid 思维导图、关系图和 Obsidian Canvas |
+| 每日回填与确认承诺 | `Tasks.md` 的预计/实际结果、变更历史及 `Review.md` 的证据复盘 |
 
-```mermaid
-flowchart LR
-    A[笔记 / Codex / Claude / 导出聊天] --> B[过滤与日期归一]
-    B --> C[本地摘录或 AI 摘要]
-    C --> D[来源卡片与 SQLite 目录]
-    D --> E[日期日记]
-    D --> F[主题 Wiki]
-    D --> G[导图 / Canvas]
-    E --> H[可选同步到私有 GitHub]
-    F --> H
-    G --> H
-```
+原生客户端日志格式可能变化，不自动读取云端账户；隐藏推理、工具输出、图片和 PDF 不作为正文导入。详见[来源范围](docs/sources.md)与[到底同步什么](docs/sync-scope.md)。
 
-## 五分钟开始
+## 选择 AI 归纳
 
-需要 Python 3.10+。默认离线摘录模式不需要 API 密钥，也不会调用模型。下面的示例使用 macOS 路径；Windows 示例紧随其后。
+默认 `extract` 是原文摘录和有限关键词分类，页面明确标注“未经语义归纳”。它适合先核验范围与流程，不能当作模型理解。
+
+需要语义摘要时，先安装并认证对应 CLI，再按次选择：
 
 ```sh
-git clone https://github.com/ltyfulan9/Obsidian-LLM-Automation.git
-cd Obsidian-LLM-Automation
-python3 -m venv .venv
-source .venv/bin/activate
-python -m pip install -e .
-knowledge init --workspace ~/PersonalWiki
-knowledge source markdown ~/Notes --workspace ~/PersonalWiki --name notes
-knowledge sync --workspace ~/PersonalWiki
+knowledge sync --workspace "$HOME/PersonalWiki" --engine codex
+knowledge sync --workspace "$HOME/PersonalWiki" --engine claude
 ```
 
-Windows 在仓库中运行：
+长期默认项在本地 `.knowledge/config.json` 的 `engine.name` 中设置。模型沿用本机 CLI 配置，或通过 `engine.model` 指定；引擎名称不保证实际供应商或模型身份。外部模型会通过该 CLI 配置的服务处理正文。长文本分段整理再合并；失败会明确报错，不把摘录冒充 AI 成果。
 
-```powershell
-py -m venv .venv
-.\.venv\Scripts\Activate.ps1
-python -m pip install -e .
-knowledge init --workspace 'C:\Notes\PersonalWiki'
-knowledge source markdown 'C:\Notes\MyVault' --workspace 'C:\Notes\PersonalWiki' --name notes
-knowledge sync --workspace 'C:\Notes\PersonalWiki'
-```
-
-然后用 Obsidian 打开 `PersonalWiki` 文件夹，从 `Home.md` 进入。工作区必须位于公共工具仓库之外，来源目录也不能包含工作区。
-
-## 每天沉淀，再用结果检查自己
-
-每天的自动采集保存你讨论和记录过的内容；现实中的完成情况需要本人回填：
+## 每天怎么用
 
 ```sh
-knowledge checkin --workspace ~/PersonalWiki --done '完成原型验收' --blocked '等待测试环境' --lesson '下次先验证依赖'
-knowledge task --workspace ~/PersonalWiki add '交付原型' --due 2026-12-10 --expected '可运行并通过样本验收'
-knowledge task --workspace ~/PersonalWiki finish TASK_ID --outcome '样本验收通过'
-knowledge review --workspace ~/PersonalWiki
+knowledge sync --workspace "$HOME/PersonalWiki"
+knowledge search --workspace "$HOME/PersonalWiki" 'Python'
+knowledge checkin --workspace "$HOME/PersonalWiki" --done '完成可核实事项' --lesson '下一次尝试'
+knowledge task --workspace "$HOME/PersonalWiki" add '我确认执行的承诺' --expected '可验收结果'
+knowledge review --workspace "$HOME/PersonalWiki"
 ```
 
-打开 `Review.md` 查看逾期未回填、反复改期和重复自报阻碍，打开 `Tasks.md` 比较预计与实际结果。每条发现都链接到证据，并把事实、待核对问题和建议分开。没有记录的日子是未知；AI 提出的待办不会自动成为你的承诺。复盘采用本地规则，不调用模型或 Jev。[操作与规则详情](docs/personal-workflow.md)。
+讨论过不等于做完。完成承诺时用返回的 ID 回填 `task finish TASK_ID --outcome '实际结果'`；AI 提议不会自动成为承诺。复盘依据明确的日期记录和本地规则，不调用模型或给人格打分。缺少记录标为未知。[每日沉淀与复盘规则](docs/personal-workflow.md)。
 
-## 把 Codex 和 Claude 对话沉淀进来
+搜索当前采用关键词匹配，最多返回 50 条；不要把它当作向量或语义检索。`build` 可以从已保存摘要重建视图，不再调用模型。手写知识放 `Notes/`，生成器不会改写；直接编辑生成页会触发保护，详见[故障修复](docs/workflow.md#错误恢复)。
 
-按需添加来源，再同步：
+## 发布与自动化分别配置
+
+普通同步只更新本地。需要 GitHub 发布时，把真实工作区配置为自己的私有仓库、`main` 分支和 `origin`，再通过 GitHub CLI 登录：
 
 ```sh
-knowledge source codex ~/.codex/sessions --workspace ~/PersonalWiki --name codex --recent-days 7
-knowledge source claude ~/.claude/projects --workspace ~/PersonalWiki --name claude --recent-days 7
-knowledge source export ~/ChatExports --workspace ~/PersonalWiki --name exports
-knowledge sync --workspace ~/PersonalWiki
+knowledge doctor --workspace "$HOME/PersonalWiki" --publish
+knowledge sync --workspace "$HOME/PersonalWiki" --push
 ```
 
-添加来源只登记路径，`sync` 才读取。支持 include/exclude 筛选；不会自动抓取账户中的全部云端聊天。Claude 网页/桌面导出与 Claude Code 本机会话是不同入口。目录及格式说明见[来源适配](docs/sources.md)。
+默认诊断不访问网络；只有显式 `--publish` 才核验发布目标。发布命令在读取来源前和发送前检查私有状态，只暂存允许的文件，不强推、不自动 rebase。[发布边界](docs/sync-scope.md)。Git 上的 Markdown 是阅读产物，不是 SQLite 中全部运行状态的替代品。
 
-### 使用 AI 归纳
+| 需要的能力 | 当前方式与边界 |
+| --- | --- |
+| Windows/macOS 定时同步 | 生成原生调度配置，再在目标机器注册；生成配置不等于启用任务 |
+| Magpie 携带压缩对话小结 | 需先登记 Library 集成；默认最近 7 天、gzip 不超过 64 KiB |
+| 失败后重试发布 | `knowledge publish`，无需重新调用模型 |
+| 检查工作区 | `knowledge doctor` 诊断；实际运行结果仍需单独核验 |
 
-默认 `extract` 是有限关键词分类与原文摘录，页面会明确标注。需要语义摘要时，安装并完成相应 CLI 认证，再选择引擎：
+[调度与安装](docs/scheduling.md) · [Magpie 接入](docs/magpie.md) · [流水线与本地状态](docs/workflow.md)。Jev 暂未接入。
 
-```sh
-knowledge sync --workspace ~/PersonalWiki --engine codex
-# 或
-knowledge sync --workspace ~/PersonalWiki --engine claude
-```
-
-长期默认项在工作区 `.knowledge/config.json` 的 `engine.name` 修改。模型名默认不指定，沿用本机 CLI 配置；`engine.model` 和 `engine.command` 可覆盖。外部模型失败会报错，不会悄悄换成摘录并标为 AI 成果。长对话分段整理后再分层合并。
-
-## 知识库结构
-
-```text
-PersonalWiki/
-  Home.md                 首页：主题与最近日期
-  Timeline.md             按月组织的日期索引
-  Sync.md                 当前同步范围与原文归档状态
-  Tasks.md                本人确认的承诺、预计结果、实际结果与变更历史
-  Review.md               最近七天和近 28 天模式复盘
-  Reviews/                按周回看，保留当时截止日期
-  Daily/                  每日学习与交流记录
-  Wiki/                   跨日期主题知识
-  Sources/                带证据与出处的摘要卡片
-  Maps/                   Mindmap.md / Graph.md / Knowledge.canvas
-  Notes/                  你的手写知识，生成器保持不动
-  Archive/                可选的规范化来源正文，默认不开启
-  .knowledge/             本地配置、SQLite、锁与生成记录，Git 忽略
-```
-
-生成页有修改保护。手写长期内容放在 `Notes/`；直接修改生成页后，下次构建会停止并提示，避免覆盖你的编辑。来源删除后保留已有知识，并标记来源不再可用。
-
-## 搜索、重建与同步
-
-```sh
-knowledge search --workspace ~/PersonalWiki 'Python'
-knowledge build --workspace ~/PersonalWiki
-knowledge status --workspace ~/PersonalWiki
-knowledge plan --workspace ~/PersonalWiki
-```
-
-`build` 从已有摘要重建视图，不重复调用模型。`sync` 采集新变化。原始正文默认只在被忽略的本地目录数据库中保存；`include_raw: true` 才额外生成 `Archive/`。本工具不替代附件与原文件的完整备份。
-
-搜索为关键词 AND 匹配，覆盖资料正文/摘要、每日回填、承诺和实际结果，按日期排序，最多 50 条；尚不提供向量语义检索。
-
-需要 GitHub 同步时，将工作区建立为你自己的**私有仓库**、分支设为 `main`、配置 `origin`，并通过 GitHub CLI 登录：
-
-```sh
-knowledge sync --workspace ~/PersonalWiki --push
-# 推送失败后，可以只重试发布：
-knowledge publish --workspace ~/PersonalWiki
-```
-
-工具在 `--push` 读取资料前核验目标私有，并在发送前再次检查。只暂存生成文件及 `Notes/`；不会强推、自动 rebase 或混入既有暂存内容。真实资料不应提交到本公共仓库。
-
-## Windows 与 macOS 自动化
-
-**每天 21:00 通过 Magpie 同步压缩对话小结**：见 [Magpie 接入与体积限制](docs/magpie.md)。新增 `knowledge export-magpie` 和 `sync --magpie`；默认最近 7 天、压缩文件不超过 64 KiB。Jev 暂不接入。
-
-同一个 `sync` 命令由不同系统的原生调度器运行：
-
-- macOS：`knowledge schedule --platform macos ...` 生成 launchd plist。
-- Windows：`knowledge schedule --platform windows ...` 生成任务计划 XML。
-
-支持 `--interval-minutes 30` 每 30 分钟运行；首次范围可用 `--recent-days 7` 指定。生成器不会隐式安装后台任务。[完整调度与安装步骤](docs/scheduling.md)。归档时区与系统触发时间分别配置，跨机器建议使用相同的归档时区。
-
-## 验证与实现边界
+## 验证与开发
 
 ```sh
 python -m unittest discover -s tests -p 'test_*.py' -v
 python -m examples.build_demo
 ```
 
-GitHub Actions 在 Linux、Windows、macOS 和 Python 3.10/3.12 上运行同一套测试，覆盖原生对话过滤、跨日归档、增量去重、错误回滚、手写内容保留、公开目标拒绝和调度配置。CI 状态见 [Actions](https://github.com/ltyfulan9/Obsidian-LLM-Automation/actions)。
+CI 在 Linux、Windows、macOS 和 Python 3.10/3.12 上运行同一套测试。模拟测试、真实 CLI、模型调用和系统调度各自记录，不相互代替。
 
-原生会话文件是客户端内部格式，适配器提供兼容性读取，不承诺覆盖所有历史/未来版本。隐藏推理、工具结果、图片及 PDF 不作为正文导入。摘要仍需对照来源判断准确性。
+[Actions](https://github.com/ltyfulan9/Obsidian-LLM-Automation/actions) · [验证记录](docs/validation.md) · [架构与失败语义](docs/architecture.md) · [更新记录](CHANGELOG.md)
 
-[架构与失败语义](docs/architecture.md) · [流水线与排错](docs/workflow.md) · [来源与官方接口依据](docs/sources.md)
-
-本机测试和真实 CLI 调用记录见[验证记录](docs/validation.md)。
-
-旧版 `automation/nightly-windows.ps1` 作为原文件归档流程保留，详见[旧版说明](docs/legacy-windows.md)；它与 v0.2 工作区和配置不同，不应同时管理同一目录。
+旧版 Windows 原文件归档脚本保留在 `automation/`，与新工作区分别管理；参阅[旧版说明](docs/legacy-windows.md)。

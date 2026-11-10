@@ -43,6 +43,10 @@ def main():
             output = destination / relative
             output.parent.mkdir(parents=True, exist_ok=True)
             shutil.copyfile(root / relative, output)
+        guide = root / "Notes/README.md"
+        if guide.exists():
+            (destination / "Notes").mkdir(exist_ok=True)
+            shutil.copyfile(guide, destination / "Notes/README.md")
         print(dict(result, generated_files=len(generated), synthetic_as_of="2026-01-11"))
 
 

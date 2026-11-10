@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- Round 1: add an offline invented demo, read-only diagnostics, shared configuration validation and a daily knowledge entrance.
+- Block generated-output feedback loops and native Codex subagent/analysis ingestion; preserve handwritten guides during upgrades.
+
 ## 0.4.0
 
 - Add daily self-reports, explicitly confirmed commitments, expected/actual outcomes and dated status-event history.

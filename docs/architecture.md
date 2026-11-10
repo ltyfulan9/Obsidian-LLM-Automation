@@ -34,11 +34,20 @@ flowchart LR
 | `render.py` | Markdown, deterministic topic paths, maps, edit detection | Source reads and provider configuration |
 | `publish.py` | Exact generated-file staging, secret checks, private GitHub guard | Collection or model selection |
 | `service.py` | Pipeline order, locking, config validation, run result | Native OS registration |
+| `config.py` | Pure, field-specific configuration validation shared by readers and writers | Filesystem inspection |
+| `doctor.py` | Read-only local readiness checks; explicit optional private-target check | Repairs, source-body reads or model calls |
+| `demo.py` | An offline first-run journey made entirely of invented records | Real personal source discovery |
 | `schedule.py` | launchd plist / Task Scheduler XML | Installing or enabling jobs |
 
 ## Failure semantics
 
 Collection reads explicit roots and applies include/exclude globs. Sources cannot contain the output workspace. Individual missing records are retained and marked unavailable. A missing source root fails the run instead of declaring its entire contents deleted.
+
+Generated directories and generated root pages cannot be registered as sources. The same managed-path policy is used by ingestion and diagnostics. Handwritten `Notes/` remains a valid explicit source. Codex sessions marked as subagents in session metadata, as well as assistant analysis-channel messages, are excluded independently of filesystem layout.
+
+Configuration validation is a pure operation: invalid value types produce field-specific errors before configuration replacement. `doctor` inspects metadata and generated-file ownership without opening source bodies, calling providers or modifying state. Database journals defer integrity inspection; a readable CLI executable does not establish authentication or successful inference. Publishing readiness is checked online only with an explicit option.
+
+Initialization and compatible upgrades create a `Notes/README.md` guide only when absent, using exclusive creation. Existing handwritten content is never replaced. The generated home page links to this stable handwritten entrance and distinguishes confirmed commitments from imported suggestions.
 
 Content and engine configuration hashes decide whether a summary needs updating. Model failures roll back the current catalog transaction. Rendering follows a successful transaction and can be retried with `knowledge build` without repeating model calls.
 

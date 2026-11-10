@@ -21,10 +21,13 @@ def parser() -> argparse.ArgumentParser:
     cli = argparse.ArgumentParser(prog="knowledge", description="Notes and AI conversations → personal wiki, daily notes and maps")
     cli.add_argument("--version", action="version", version=__version__)
     commands = cli.add_subparsers(dest="command", required=True)
-    for name in ("init", "sync", "build", "search", "status", "plan", "export-magpie", "schedule", "publish", "source", "checkin", "task", "review"):
+    for name in ("init", "sync", "build", "search", "status", "plan", "export-magpie", "schedule", "publish", "source", "checkin", "task", "review", "demo", "doctor"):
         command = commands.add_parser(name)
         command.add_argument("--workspace", type=Path, required=True)
-        if name == "checkin":
+        if name == "doctor":
+            command.add_argument("--publish", action="store_true", help="Explicitly check the private GitHub publication target")
+            command.add_argument("--format", choices=("text", "json"), default="text")
+        elif name == "checkin":
             command.add_argument("--date")
             command.add_argument("--done", action="append", default=[])
             command.add_argument("--blocked", action="append", default=[])
@@ -76,7 +79,22 @@ def main(argv=None) -> int:
     args = parser().parse_args(argv)
     root = args.workspace.expanduser().resolve()
     try:
-        if args.command == "init":
+        if args.command == "doctor":
+            from .doctor import doctor
+            result = doctor(root, check_publish=args.publish)
+            if args.format == "json":
+                print(json.dumps(result, ensure_ascii=False, indent=2))
+            else:
+                print("Local workspace checks passed" if result["ok"] else "Local workspace needs attention")
+                for check in result["checks"]:
+                    print(f"[{check['status']}] {check['id']}: {check['message']}")
+                    if check.get("next_step"):
+                        print("  Next: " + check["next_step"])
+            return 0 if result["ok"] else 1
+        elif args.command == "demo":
+            from .demo import create_demo
+            result = create_demo(root)
+        elif args.command == "init":
             initialize(root)
             result = {"workspace": str(root), "next": "Add explicit sources with knowledge source, then knowledge sync"}
         elif args.command == "source":
@@ -95,10 +113,8 @@ def main(argv=None) -> int:
                     today = datetime.now().astimezone(get_timezone(config.get("timezone", "local"))).date()
                     source["since"] = (today - timedelta(days=args.recent_days - 1)).isoformat()
                 config["sources"].append(source)
-                # Validate before replacing the persisted configuration.
-                import re
-                if not re.fullmatch(r"[\w\-]{1,60}", args.name):
-                    raise KnowledgeError("Use letters, numbers, underscores or hyphens in source names")
+                from .config import validate_config
+                validate_config(config)
                 write_json(root / ".knowledge" / "config.json", config)
                 result = {"added": args.name, "kind": args.kind}
         elif args.command == "checkin":
