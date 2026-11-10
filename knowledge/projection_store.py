@@ -9,8 +9,8 @@ def target_path(root: Path, relative: str) -> Path:
     if not isinstance(relative, str) or "\\" in relative:
         raise KnowledgeError("Invalid generated path")
     parts = PurePosixPath(relative).parts
-    allowed = relative in {"Home.md", "Timeline.md", "Sync.md"} or (
-        len(parts) == 2 and parts[0] in {"Sources", "Daily", "Wiki", "Maps", "Archive"}
+    allowed = relative in {"Home.md", "Timeline.md", "Sync.md", "Tasks.md", "Review.md"} or (
+        len(parts) == 2 and parts[0] in {"Sources", "Daily", "Wiki", "Maps", "Archive", "Reviews"}
         and parts[1] not in {".", ".."} and relative.endswith((".md", ".canvas")))
     target = root / relative
     if not allowed or not target.resolve().is_relative_to(root.resolve()) or target.is_symlink():

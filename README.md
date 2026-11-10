@@ -2,9 +2,11 @@
 
 把笔记和与 AI 的交流沉淀成可追溯的个人知识库，按**日期**回顾，按**主题**复用，用**导图**连接。
 
-v0.3 使用一套 Python 核心运行于 Windows 和 macOS。公共仓库存放工具与虚构演示资料，真实知识保存在独立的本地工作区，可选择同步到私有 GitHub。
+v0.4 使用一套 Python 核心运行于 Windows 和 macOS，加入**每日回填、确认承诺、实际结果和有据可查的长期复盘**。公共仓库存放工具与虚构演示资料，真实知识保存在独立的本地工作区，可选择同步到私有 GitHub。
 
 [同步内容与自动化说明](docs/sync-scope.md) · [查看演示知识库](examples/demo-wiki/Home.md) · [演示导图](examples/demo-wiki/Maps/Mindmap.md) · [演示时间线](examples/demo-wiki/Timeline.md) · [更新记录](CHANGELOG.md)
+
+[每日沉淀与复盘流程](docs/personal-workflow.md) · [查看虚构行为复盘](examples/demo-wiki/Review.md) · [查看承诺与实际结果](examples/demo-wiki/Tasks.md)
 
 ## 能做什么
 
@@ -17,6 +19,8 @@ v0.3 使用一套 Python 核心运行于 Windows 和 macOS。公共仓库存放�
 | 主题 | `Wiki/` 聚合来源摘要、明确决策、待解决问题 |
 | 导图 | Mermaid 思维导图、关系图和可在 Obsidian 打开的 Canvas |
 | 持续更新 | 内容哈希去重、增量摘要、本地搜索、Windows/macOS 调度配置 |
+| 每日回填 | 本人记录完成事项、阻碍和教训，与 AI 归纳区分 |
+| 承诺与复盘 | 保存预计和实际结果、改期原因，生成有日期依据的周复盘 |
 
 ```mermaid
 flowchart LR
@@ -59,6 +63,19 @@ knowledge sync --workspace 'C:\Notes\PersonalWiki'
 
 然后用 Obsidian 打开 `PersonalWiki` 文件夹，从 `Home.md` 进入。工作区必须位于公共工具仓库之外，来源目录也不能包含工作区。
 
+## 每天沉淀，再用结果检查自己
+
+每天的自动采集保存你讨论和记录过的内容；现实中的完成情况需要本人回填：
+
+```sh
+knowledge checkin --workspace ~/PersonalWiki --done '完成原型验收' --blocked '等待测试环境' --lesson '下次先验证依赖'
+knowledge task --workspace ~/PersonalWiki add '交付原型' --due 2026-12-10 --expected '可运行并通过样本验收'
+knowledge task --workspace ~/PersonalWiki finish TASK_ID --outcome '样本验收通过'
+knowledge review --workspace ~/PersonalWiki
+```
+
+打开 `Review.md` 查看逾期未回填、反复改期和重复自报阻碍，打开 `Tasks.md` 比较预计与实际结果。每条发现都链接到证据，并把事实、待核对问题和建议分开。没有记录的日子是未知；AI 提出的待办不会自动成为你的承诺。复盘采用本地规则，不调用模型或 Jev。[操作与规则详情](docs/personal-workflow.md)。
+
 ## 把 Codex 和 Claude 对话沉淀进来
 
 按需添加来源，再同步：
@@ -91,6 +108,9 @@ PersonalWiki/
   Home.md                 首页：主题与最近日期
   Timeline.md             按月组织的日期索引
   Sync.md                 当前同步范围与原文归档状态
+  Tasks.md                本人确认的承诺、预计结果、实际结果与变更历史
+  Review.md               最近七天和近 28 天模式复盘
+  Reviews/                按周回看，保留当时截止日期
   Daily/                  每日学习与交流记录
   Wiki/                   跨日期主题知识
   Sources/                带证据与出处的摘要卡片
@@ -112,6 +132,8 @@ knowledge plan --workspace ~/PersonalWiki
 ```
 
 `build` 从已有摘要重建视图，不重复调用模型。`sync` 采集新变化。原始正文默认只在被忽略的本地目录数据库中保存；`include_raw: true` 才额外生成 `Archive/`。本工具不替代附件与原文件的完整备份。
+
+搜索为关键词 AND 匹配，覆盖资料正文/摘要、每日回填、承诺和实际结果，按日期排序，最多 50 条；尚不提供向量语义检索。
 
 需要 GitHub 同步时，将工作区建立为你自己的**私有仓库**、分支设为 `main`、配置 `origin`，并通过 GitHub CLI 登录：
 

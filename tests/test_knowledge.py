@@ -55,6 +55,7 @@ class WorkspaceCase(WorkspaceFixture, unittest.TestCase):
                 self.assertEqual(main(["plan", "--workspace", str(self.root)]), 0)
             value = json.loads(output.getvalue())
             self.assertFalse(value["raw_archive"])
+            self.assertIn("Confirmed commitments and outcomes", value["publishes"])
             self.assertEqual(value["sources"][0]["kind"], "claude")
             self.assertNotIn(str(self.source), output.getvalue())
             reader.assert_not_called()
@@ -97,10 +98,15 @@ class WorkspaceCase(WorkspaceFixture, unittest.TestCase):
         self.config["include_raw"] = True
         write_json(self.root / ".knowledge/config.json", self.config)
         sync(self.root)
+        from knowledge.reflection import checkin, task
+        checkin(self.root, "2026-01-02", ["完成虚构验收"], [], [])
+        task(self.root, "add", "跟进虚构验收", day="2026-01-02", expected="验收记录")
         with patch("knowledge.publish.private_target", return_value="example/private-fixture"):
             publish(self.root, include_raw=True)
         self.assertEqual(git("ls-files", ".knowledge"), "")
         self.assertTrue(git("ls-files", "Archive"))
+        self.assertEqual(git("ls-files", "Tasks.md"), "Tasks.md")
+        self.assertTrue(git("ls-files", "Reviews"))
         self.config["include_raw"] = False
         write_json(self.root / ".knowledge/config.json", self.config)
         rebuild(self.root)

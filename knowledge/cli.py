@@ -14,16 +14,34 @@ from .publish import publish
 from .schedule import definition
 from .service import export_magpie, initialize, load_config, rebuild, search, sync
 from .scope import sync_scope
+from .reflection import checkin, review, task
 
 
 def parser() -> argparse.ArgumentParser:
     cli = argparse.ArgumentParser(prog="knowledge", description="Notes and AI conversations → personal wiki, daily notes and maps")
     cli.add_argument("--version", action="version", version=__version__)
     commands = cli.add_subparsers(dest="command", required=True)
-    for name in ("init", "sync", "build", "search", "status", "plan", "export-magpie", "schedule", "publish", "source"):
+    for name in ("init", "sync", "build", "search", "status", "plan", "export-magpie", "schedule", "publish", "source", "checkin", "task", "review"):
         command = commands.add_parser(name)
         command.add_argument("--workspace", type=Path, required=True)
-        if name == "sync":
+        if name == "checkin":
+            command.add_argument("--date")
+            command.add_argument("--done", action="append", default=[])
+            command.add_argument("--blocked", action="append", default=[])
+            command.add_argument("--lesson", action="append", default=[])
+            command.add_argument("--replace", action="store_true")
+        elif name == "task":
+            command.add_argument("action", choices=("add", "list", "finish", "defer", "cancel", "reopen"))
+            command.add_argument("value", nargs="?", help="Title for add, task ID for other changes")
+            command.add_argument("--date")
+            command.add_argument("--due")
+            command.add_argument("--expected", default="")
+            command.add_argument("--outcome", default="")
+            command.add_argument("--reason", default="")
+            command.add_argument("--source", help="Existing source-card ID")
+        elif name == "review":
+            command.add_argument("--as-of")
+        elif name == "sync":
             command.add_argument("--engine", choices=("extract", "codex", "claude"))
             command.add_argument("--push", action="store_true")
             command.add_argument("--magpie", action="store_true")
@@ -83,6 +101,13 @@ def main(argv=None) -> int:
                     raise KnowledgeError("Use letters, numbers, underscores or hyphens in source names")
                 write_json(root / ".knowledge" / "config.json", config)
                 result = {"added": args.name, "kind": args.kind}
+        elif args.command == "checkin":
+            result = checkin(root, args.date, args.done, args.blocked, args.lesson, args.replace)
+        elif args.command == "task":
+            result = task(root, args.action, args.value, day=args.date, due=args.due, expected=args.expected,
+                          outcome=args.outcome, reason=args.reason, source_id=args.source)
+        elif args.command == "review":
+            result = review(root, args.as_of)
         elif args.command == "sync":
             result = sync(root, args.engine, args.push, args.magpie)
         elif args.command == "export-magpie":

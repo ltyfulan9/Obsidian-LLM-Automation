@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.4.0
+
+- Add daily self-reports, explicitly confirmed commitments, expected/actual outcomes and dated status-event history.
+- Add evidence-linked seven-day reviews, 28-day repeated-pattern rules and historical weekly projections without future-outcome leakage.
+- Keep imported AI questions separate from user commitments; label missing days unknown and self-reports unverified.
+- Extend keyword search and private publication to personal records; preserve existing workspaces and handwritten notes.
+- Add a reproducible, entirely invented daily improvement demonstration and CLI workflow documentation.
+
 ## 0.3.0
 
 - Add bounded gzip conversation-summary bundles carried by Magpie's registered Library integration, with explicit private-target checks.

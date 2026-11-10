@@ -31,7 +31,10 @@ def items(values: list[str]) -> str:
     return "\n".join("- " + value.replace("\n", "\n  ") for value in values) or "- 暂无记录。"
 
 
-def projections(rows: list[dict], config: dict) -> dict[str, str]:
+def projections(rows: list[dict], config: dict, personal: dict | None = None) -> dict[str, str]:
+    from .personal_render import daily_blocks, projections as personal_projections
+    personal = personal or {}
+    daily = daily_blocks(personal)
     files = {}
     scope = sync_scope(config)
     engine_label = "本地摘录与关键词分类" if scope["summary_engine"] == "extract" else scope["summary_engine"] + " AI 语义归纳"
@@ -45,6 +48,7 @@ def projections(rows: list[dict], config: dict) -> dict[str, str]:
     scope_page += "\n## 会同步到私有 GitHub\n\n"
     scope_page += "- 笔记与 AI 对话内容小结：来源卡片、日期日记、主题 Wiki。\n"
     scope_page += "- 要点、已明确的决定与待解决问题，保留来源和核实边界。\n"
+    scope_page += "- 每日回填、本人确认的承诺及变更原因、实际结果与带依据的规则复盘。\n"
     scope_page += "- 时间线、思维导图、关系图、Obsidian Canvas，以及手写 `Notes/`。\n"
     scope_page += "- 仅执行 `publish` 或 `sync --push` 时发送；普通 `sync` 只更新本地。\n"
     scope_page += ("- 已启用 `Archive/` 规范化正文归档；正文会随生成文件参与私有发布。\n" if scope["raw_archive"]
@@ -76,17 +80,20 @@ def projections(rows: list[dict], config: dict) -> dict[str, str]:
         if config.get("include_raw", False):
             files[f"Archive/{document['id']}.md"] = f"# 规范化来源正文\n\n{document['text']}\n"
 
+    for day in daily:
+        by_day.setdefault(day, [])
     for day in sorted(by_day, reverse=True):
         entries = by_day[day]
         by_month[day[:7]].append(day)
         page = f"# {day} · 知识日记\n\n" + link("全部日期", "../Timeline.md") + " · " + link("知识库首页", "../Home.md") + "\n\n"
+        page += daily.get(day, "")
         for row in entries:
             summary = row["summary"]
             page += "## " + link(summary["title"], "../" + card_path(row)) + "\n\n" + summary["summary"] + "\n\n"
             if summary["decisions"]:
                 page += "### 决策\n\n" + items(summary["decisions"]) + "\n\n"
             if summary["questions"]:
-                page += "### 待办与问题\n\n" + items(summary["questions"]) + "\n\n"
+                page += "### AI 整理的待解决问题（未经承诺确认）\n\n" + items(summary["questions"]) + "\n\n"
         files[f"Daily/{day}.md"] = page
 
     for topic in sorted(by_topic):
@@ -110,6 +117,8 @@ def projections(rows: list[dict], config: dict) -> dict[str, str]:
         + link("时间线", "Timeline.md") + " · " + link("主题导图", "Maps/Mindmap.md") + " · "
         + link("关系图", "Maps/Graph.md") + " · " + link("Obsidian Canvas", "Maps/Knowledge.canvas") + "\n\n"
         + link("查看同步范围", "Sync.md") + "\n\n"
+        + link("承诺与实际结果", "Tasks.md") + " · " + link("行为复盘与每周回看", "Review.md") + "\n\n"
+        "每天采集资料，再回填完成事项、阻碍和教训；确认承诺后记录实际结果，用有日期依据的复盘检查改进。\n\n"
         "## 主题 Wiki\n\n" + ("\n".join("- " + link(topic, f"Wiki/{slug(topic)}.md") + f" · {len(entries)} 份来源" for topic, entries in sorted(by_topic.items())) or "尚未导入资料。")
         + "\n\n## 最近日记\n\n" + "\n".join("- " + link(day, f"Daily/{day}.md") for day in sorted(by_day, reverse=True)[:14])
         + "\n\n## 手写知识\n\n在 `Notes/` 保存长期笔记，生成器不会改写此目录。\n"
@@ -144,12 +153,13 @@ def projections(rows: list[dict], config: dict) -> dict[str, str]:
     files["Maps/Mindmap.md"] = "\n".join(mindmap + ["```", ""])
     files["Maps/Graph.md"] = "\n".join(graph + ["```", ""])
     files["Maps/Knowledge.canvas"] = json.dumps({"nodes": nodes, "edges": edges}, ensure_ascii=False, indent=2) + "\n"
+    files.update(personal_projections(personal, config))
     return files
 
 
-def build(root: Path, rows: list[dict], config: dict) -> int:
+def build(root: Path, rows: list[dict], config: dict, personal: dict | None = None) -> int:
     recover(root)
-    generated = projections(rows, config)
+    generated = projections(rows, config, personal)
     contents = {}
     for relative, content in generated.items():
         content = content.rstrip() + "\n"

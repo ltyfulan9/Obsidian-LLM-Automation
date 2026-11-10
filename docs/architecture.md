@@ -8,6 +8,8 @@ A **document** is one Markdown file or one conversation/day pair. Its stable ID 
 
 A **source card** is a dated summary with source references, topics, key points, explicit decisions and unresolved questions. Daily pages, topic pages and maps are projections of the same catalog, so the two navigation dimensions agree.
 
+A **check-in** is a dated self-report of completed work, blockers and lessons. A **commitment** is explicitly confirmed by the user, with an optional deadline, expected result and source-card reference. Its append-only status events record deferrals, actual outcomes, cancellation and reopening. Imported plans and AI questions never create commitments automatically. A **review** applies transparent local rules to those observations and events, retaining evidence and uncertainty rather than rating a person.
+
 ```mermaid
 flowchart LR
     A[Configured read-only sources] --> B[Adapters and privacy filter]
@@ -27,6 +29,8 @@ flowchart LR
 | `ingest.py` | File filtering, native adapters, timezone date split, source identity | Model calls, output files |
 | `summarize.py` | Extraction, CLI invocation, chunking, strict result validation | Workspace paths and Git |
 | `catalog.py` | Transactional content/engine hashes, summaries, availability | Rendering |
+| `reflection.py` | User-confirmed check-ins, commitment transitions, historical state and review rules | Model calls or personality judgments |
+| `personal_render.py` | Daily self-reports, task history and evidence-linked weekly projections | Source ingestion or task inference |
 | `render.py` | Markdown, deterministic topic paths, maps, edit detection | Source reads and provider configuration |
 | `publish.py` | Exact generated-file staging, secret checks, private GitHub guard | Collection or model selection |
 | `service.py` | Pipeline order, locking, config validation, run result | Native OS registration |
@@ -44,6 +48,8 @@ The workspace uses an OS advisory lock: a process exit releases it even if the l
 
 Local collection and Git publication are separate. A publication failure does not roll back successfully collected knowledge. `knowledge publish` retries Git without reprocessing sources. Conflicts need human resolution; the tool never force pushes or silently rebases.
 
+Personal tables are added in place when opening an older catalog. Check-ins merge with exact deduplication, unless explicitly replaced; commitment events preserve date order per task. Saved personal facts remain committed if rendering fails; the error distinguishes this state and `knowledge build` regenerates pages without another provider call. Weekly projections replay only events up to the week-end cutoff, while the current week stops at today. They can change after intentional historical corrections; they are not immutable audit snapshots.
+
 With `--push`, the target is verified private before collection and again immediately before transmission. Provider stderr and raw result bodies are not printed, since they can echo private prompts.
 
 ## Meaning and limits
@@ -53,3 +59,5 @@ Extraction is labeled as an excerpt. AI summaries are labeled for verification a
 Normalized text is held in ignored local SQLite state. `include_raw` defaults to `false`; enabling it adds normalized text to `Archive/` for optional private publication. This is a text knowledge importer, not a byte-for-byte backup of images, PDFs, plugin state or session metadata. The legacy archive script serves that older use case.
 
 Turning raw archives off removes those generated files from later snapshots and publication, but does not purge earlier private Git history.
+
+Review rules flag overdue open commitments, at least two deferrals of the same task in 28 days, and identical blocker wording on at least three distinct dates in 28 days. They ask the user to check explanations; missing observations are unknown, and causal, personality or medical conclusions are outside the model. The generated Markdown is a readable export; operational personal state remains in ignored SQLite and needs a separate secure local backup for migration.

@@ -51,8 +51,8 @@ def publish(root: Path, include_raw: bool = False) -> str:
     paths = sorted(path for path in registry if include_raw or not path.startswith("Archive/"))
     # Stage removed generated files too, including archives disabled by configuration.
     deleted = run(["git", "ls-files", "--deleted", "-z"], root).split("\0")
-    paths += [path for path in deleted if path and (path.startswith(("Sources/", "Daily/", "Wiki/", "Maps/", "Archive/"))
-                                                    or path in {"Home.md", "Timeline.md", "Sync.md"}) and path not in paths]
+    paths += [path for path in deleted if path and (path.startswith(("Sources/", "Daily/", "Wiki/", "Maps/", "Archive/", "Reviews/"))
+                                                    or path in {"Home.md", "Timeline.md", "Sync.md", "Tasks.md", "Review.md"}) and path not in paths]
     if (root / "Notes").exists():
         paths.append("Notes")
     paths += [".gitignore"] if (root / ".gitignore").exists() else []

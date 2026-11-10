@@ -16,6 +16,15 @@ class Catalog:
             content_hash TEXT NOT NULL, engine_hash TEXT NOT NULL,
             document TEXT NOT NULL, summary TEXT NOT NULL, available INTEGER NOT NULL DEFAULT 1
         )""")
+        self.connection.execute("CREATE TABLE IF NOT EXISTS checkins (day TEXT PRIMARY KEY, data TEXT NOT NULL)")
+        self.connection.execute("""CREATE TABLE IF NOT EXISTS commitments (
+            id TEXT PRIMARY KEY, title TEXT NOT NULL, created TEXT NOT NULL,
+            expected TEXT NOT NULL, source_id TEXT
+        )""")
+        self.connection.execute("""CREATE TABLE IF NOT EXISTS commitment_events (
+            seq INTEGER PRIMARY KEY AUTOINCREMENT, task_id TEXT NOT NULL,
+            day TEXT NOT NULL, kind TEXT NOT NULL, data TEXT NOT NULL
+        )""")
         self.connection.commit()
 
     def close(self):
@@ -39,3 +48,19 @@ class Catalog:
     def rows(self) -> list[dict]:
         return [{"document": json.loads(row["document"]), "summary": json.loads(row["summary"]),
                  "available": bool(row["available"])} for row in self.connection.execute("SELECT * FROM documents ORDER BY day DESC, id")]
+
+    def personal_state(self) -> dict:
+        # All three reads must observe the same snapshot, including during a CLI search.
+        own_transaction = not self.connection.in_transaction
+        if own_transaction:
+            self.connection.execute("BEGIN")
+        try:
+            return {
+                "checkins": [{"day": row["day"], **json.loads(row["data"])} for row in self.connection.execute("SELECT * FROM checkins ORDER BY day")],
+                "tasks": [dict(row) for row in self.connection.execute("SELECT * FROM commitments ORDER BY created, id")],
+                "events": [{"seq": row["seq"], "task_id": row["task_id"], "day": row["day"], "kind": row["kind"],
+                            **json.loads(row["data"])} for row in self.connection.execute("SELECT * FROM commitment_events ORDER BY day, seq")],
+            }
+        finally:
+            if own_transaction:
+                self.connection.rollback()  # End this read snapshot, never a caller's write transaction.

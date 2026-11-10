@@ -10,9 +10,10 @@ def sync_scope(config: dict) -> dict:
                     for source in config["sources"]],
         "summary_engine": config["engine"]["name"],
         "publishes": ["Source summaries", "Daily journals", "Topic Wiki", "Timeline", "Mermaid maps",
-                      "Obsidian Canvas", "Sync scope", "Handwritten Notes"],
+                      "Obsidian Canvas", "Sync scope", "Handwritten Notes", "Daily self-reports",
+                      "Confirmed commitments and outcomes", "Evidence-linked weekly reviews"],
         "raw_archive": bool(config.get("include_raw", False)),
-        "local_only": ["Source text in SQLite", "Source paths and engine config", "Locks and run state"],
+        "local_only": ["Source text and operational personal state in SQLite", "Source paths and engine config", "Locks and run state"],
         "never_collected": ["API keys and login stores", "Hidden reasoning", "Tool outputs", "Magpie configuration backups"],
         "git_target": "Verified private GitHub repository only",
     }

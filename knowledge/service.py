@@ -96,7 +96,7 @@ def initialize(root: Path) -> None:
     atomic_write(ignore, previous.rstrip() + "\n# Local knowledge state and authentication\n.knowledge/\n.obsidian/\n.env\n.env.*\n*.pem\n*.key\n")
     catalog = Catalog(root)
     try:
-        build(root, catalog.rows(), DEFAULT_CONFIG)
+        build(root, catalog.rows(), DEFAULT_CONFIG, catalog.personal_state())
     finally:
         catalog.close()
 
@@ -134,7 +134,7 @@ def sync(root: Path, engine_name: str | None = None, push: bool = False, magpie:
                     changed += 1
                 for source_name, present in seen.items():
                     catalog.mark_missing(source_name, present)
-            count = build(root, catalog.rows(), config)
+            count = build(root, catalog.rows(), config, catalog.personal_state())
             result = {"tool_version": __version__, "time": datetime.now(timezone.utc).isoformat(),
                       "documents": len(documents), "updated": changed, "unchanged": unchanged, "generated_files": count,
                       "engine": config["engine"]["name"], "published_commit": None}
@@ -163,7 +163,7 @@ def rebuild(root: Path) -> int:
     with workspace_lock(root):
         catalog = Catalog(root)
         try:
-            return build(root, catalog.rows(), config)
+            return build(root, catalog.rows(), config, catalog.personal_state())
         finally:
             catalog.close()
 
@@ -173,9 +173,22 @@ def search(root: Path, query: str) -> list[dict]:
     catalog = Catalog(root)
     try:
         terms = query.casefold().split()
-        return [{"date": row["document"]["day"], "title": row["summary"]["title"],
+        results = [{"date": row["document"]["day"], "title": row["summary"]["title"],
                  "topics": row["summary"]["topics"], "file": f"Sources/{row['document']['id']}.md"}
                 for row in catalog.rows()
-                if all(term in json.dumps(row, ensure_ascii=False).casefold() for term in terms)][:50]
+                if all(term in json.dumps(row, ensure_ascii=False).casefold() for term in terms)]
+        personal = catalog.personal_state()
+        for entry in personal["checkins"]:
+            body = " ".join(value for key in ("done", "blocked", "lessons") for value in entry[key])
+            if all(term in body.casefold() for term in terms):
+                results.append({"date": entry["day"], "title": "每日回填", "topics": [],
+                                "file": f"Daily/{entry['day']}.md#checkin"})
+        for task in personal["tasks"]:
+            events = [event for event in personal["events"] if event["task_id"] == task["id"]]
+            body = " ".join([task["title"], task["expected"]] + [event.get("outcome", event.get("reason", "")) for event in events])
+            if all(term in body.casefold() for term in terms):
+                results.append({"date": max(event["day"] for event in events), "title": task["title"], "topics": [],
+                                "file": f"Tasks.md#task-{task['id']}"})
+        return sorted(results, key=lambda result: (result["date"], result["file"]), reverse=True)[:50]
     finally:
         catalog.close()
